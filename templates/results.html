@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Results</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    <style>
+        .option {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .correct-option {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .selected-option {
+            background-color: #f0f0f0;
+        }
+        .question-block {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -30,9 +50,12 @@
                         <pre><code class="language-python">{{ questions[question_index-1].code }}</code></pre>
                         {% endif %}
                         
-                        <div class="answer-review">
-                            <p class="your-answer">Your answer: {{ answers.get(question_index, 'Not answered') }}</p>
-                            <p class="correct-answer">Correct answer: {{ correct_answers.get(question_index) }}</p>
+                        <div class="options">
+                            {% for option in questions[question_index-1].options %}
+                                <div class="option {% if option.startswith(correct_answers.get(question_index)) %}correct-option{% endif %} {% if option.startswith(answers.get(question_index)) %}selected-option{% endif %}">
+                                    {{ option }}
+                                </div>
+                            {% endfor %}
                         </div>
                     </div>
                 {% endif %}
