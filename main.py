@@ -69,9 +69,7 @@ async def submit_quiz(request: Request):
         # Get correct answers from questions
         correct_answers = {}
         for i, question in enumerate(questions, 1):
-            # For now, assume the first option (A) is correct
-            # In a real app, you would store the correct answer when generating questions
-            correct_answers[i] = 'A'
+            correct_answers[i] = question.get('correct_answer', 'A')
         
         # Calculate score
         score = sum(1 for q, a in answers.items() if a == correct_answers.get(q, ''))

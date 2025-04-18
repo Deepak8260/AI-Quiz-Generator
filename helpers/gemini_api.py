@@ -13,52 +13,83 @@ def generate_mcqs(topic: str, level: str, num_questions: int = 20) -> list:
     
     try:
         prompt = f"""
-        You are an expert quiz generator.
+        Generate {num_questions} technical multiple-choice questions about **{topic}** for **{level}** level learners.
 
-        Generate {num_questions} technical multiple-choice questions based on the topic: **{topic}** for **{level}** level learners.
+        Format each question exactly like this:
+        What is pandas used for?
+        A) Data manipulation
+        B) Web development
+        C) Game development
+        D) Image processing
+        Correct: A
 
-        📝 Follow this strict format for each question:
-
-        Q1: [Question text]
-
-        [If the question needs code, include it like this:]
+        If code is needed:
+        How to read a CSV file in pandas?
         ```python
-        # Your Python code here
+        df = pd.read_csv('data.csv')
         ```
-        A) Option text
-        B) Option text
-        C) Option text
-        D) Option text
+        A) Correct way
+        B) Incorrect way
+        C) Another way
+        D) Wrong way
+        Correct: A
 
-        🔒 Rules:
-        - Each question must have exactly 4 practical and relevant options (A to D)
-        - Use triple backticks with 'python' for code blocks
-        - Number questions sequentially (Q1, Q2, Q3, etc.)
-        - Format options exactly as shown above
-        - Ensure each question is unique and relevant to the topic
+        Rules:
+        - Make questions direct and concise
+        - No Q1:, Q2: prefixes
+        - No extra text or comments
+        - Include code only if essential for the question
+        - Always end with Correct: X where X is A, B, C, or D
+        - Make all options relevant and realistic
         """
 
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         text = response.text.strip()
 
-        # Regex to capture each full question block including options
-        question_pattern = re.compile(r"(Q\d+:.*?)(?=Q\d+:|$)", re.DOTALL)
-        matches = question_pattern.findall(text)
-
+        # Split text into individual questions
         questions = []
-        for q_text in matches:
+        current_question = []
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                if current_question:
+                    questions.append('\n'.join(current_question))
+                    current_question = []
+            else:
+                current_question.append(line)
+        
+        if current_question:
+            questions.append('\n'.join(current_question))
+
+        # Process each question
+        processed_questions = []
+        for q_text in questions:
+            if not q_text.strip():
+                continue
+                
             # Extract options
-            options_pattern = re.compile(r"([A-D]\).*?)(?=[A-D]\)|$)", re.DOTALL)
+            options_pattern = re.compile(r"([A-D]\).*?)(?=[A-D]\)|Correct:|$)", re.DOTALL)
             options = options_pattern.findall(q_text)
             
-            questions.append({
-                "question": q_text.split("\n")[0].strip(),
+            # Extract correct answer
+            correct_answer_pattern = re.compile(r"Correct:\s*([A-D])", re.IGNORECASE)
+            correct_answer_match = correct_answer_pattern.search(q_text)
+            correct_answer = correct_answer_match.group(1) if correct_answer_match else 'A'
+            
+            # Get question text (first line)
+            question_text = q_text.split('\n')[0].strip()
+            
+            processed_questions.append({
+                "question": question_text,
                 "code": extract_code(q_text),
-                "options": [opt.strip() for opt in options]
+                "options": [opt.strip() for opt in options if opt.strip()],
+                "correct_answer": correct_answer
             })
 
-        return questions
+        return processed_questions
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {str(e)}")
