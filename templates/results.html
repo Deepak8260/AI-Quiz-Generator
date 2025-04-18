@@ -10,25 +10,33 @@
     <div class="container">
         <h1>📊 Quiz Results</h1>
         
-        <div class="results-section">
-            <h2>Your Score: {{ score }}/{{ total_questions }}</h2>
-            
-            <div class="score-summary">
-                <p>You answered {{ score }} out of {{ total_questions }} questions correctly.</p>
-                <p>Percentage: {{ (score / total_questions * 100) | round(1) }}%</p>
+        <div class="score-summary">
+            <div class="score-display">
+                <h2>Your Score: {{ score }}/{{ total_questions }}</h2>
+                <p class="percentage">Percentage: {{ (score / total_questions * 100) | round(1) }}%</p>
             </div>
+        </div>
+        
+        <div class="questions-review">
+            <h2>Question Review</h2>
             
-            <div class="answers-review">
-                <h3>Answer Review</h3>
-                
-                {% for question_index in range(1, total_questions + 1) %}
-                    <div class="result-item {% if answers.get(question_index) == correct_answers.get(question_index) %}correct{% else %}incorrect{% endif %}">
-                        <p><strong>Question {{ question_index }}:</strong></p>
-                        <p>Your answer: {{ answers.get(question_index, 'Not answered') }}</p>
-                        <p>Correct answer: {{ correct_answers.get(question_index) }}</p>
+            {% for question_index in range(1, total_questions + 1) %}
+                {% if questions and questions|length >= question_index %}
+                    <div class="question-block {% if answers.get(question_index) == correct_answers.get(question_index) %}correct{% else %}incorrect{% endif %}">
+                        <h3>Question {{ question_index }}:</h3>
+                        <p>{{ questions[question_index-1].question }}</p>
+                        
+                        {% if questions[question_index-1].code %}
+                        <pre><code class="language-python">{{ questions[question_index-1].code }}</code></pre>
+                        {% endif %}
+                        
+                        <div class="answer-review">
+                            <p class="your-answer">Your answer: {{ answers.get(question_index, 'Not answered') }}</p>
+                            <p class="correct-answer">Correct answer: {{ correct_answers.get(question_index) }}</p>
+                        </div>
                     </div>
-                {% endfor %}
-            </div>
+                {% endif %}
+            {% endfor %}
         </div>
         
         <div class="action-buttons">
