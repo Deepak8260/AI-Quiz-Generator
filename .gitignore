@@ -1,0 +1,22 @@
+.env
+# Python
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+
+# Logs
+*.log
+
+# Local development
+instance/
+
+/venv

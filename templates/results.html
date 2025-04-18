@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Quiz Results</h1>
+        
+        <div class="results-section">
+            <h2>Your Score: {{ score }}/{{ total_questions }}</h2>
+            
+            <div class="score-summary">
+                <p>You answered {{ score }} out of {{ total_questions }} questions correctly.</p>
+                <p>Percentage: {{ (score / total_questions * 100) | round(1) }}%</p>
+            </div>
+            
+            <div class="answers-review">
+                <h3>Answer Review</h3>
+                
+                {% for question_index in range(1, total_questions + 1) %}
+                    <div class="result-item {% if answers.get(question_index) == correct_answers.get(question_index) %}correct{% else %}incorrect{% endif %}">
+                        <p><strong>Question {{ question_index }}:</strong></p>
+                        <p>Your answer: {{ answers.get(question_index, 'Not answered') }}</p>
+                        <p>Correct answer: {{ correct_answers.get(question_index) }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/" class="btn">Back to Home</a>
+            <a href="/" class="btn">Try Another Quiz</a>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Quiz Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 AI Quiz Generator</h1>
+        <form action="/generate-quiz" method="post" enctype="application/x-www-form-urlencoded">
+            <div class="form-group">
+                <label for="topic">Enter Topic:</label>
+                <input type="text" id="topic" name="topic" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="level">Choose Difficulty Level:</label>
+                <select id="level" name="level" required>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="num_questions">Number of Questions:</label>
+                <input type="number" id="num_questions" name="num_questions" value="20" min="1" max="50">
+            </div>
+            
+            <button type="submit" class="generate-btn">Generate Quiz</button>
+        </form>
+    </div>
+</body>
+</html>

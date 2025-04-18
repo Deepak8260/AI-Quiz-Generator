@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Questions</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Quiz Time!</h1>
+        <h2>Topic: {{ topic }} ({{ level }} level)</h2>
+        
+        {% if questions %}
+            <form action="/submit-quiz" method="post">
+                {% for question in questions %}
+                    {% set question_number = loop.index %}
+                    <div class="question-block">
+                        <h3>Question {{ question_number }}:</h3>
+                        <p>{{ question.question }}</p>
+                        
+                        {% if question.code %}
+                        <pre><code class="language-python">{{ question.code }}</code></pre>
+                        {% endif %}
+                        
+                        <div class="options">
+                            {% for option in question.options %}
+                                {% set option_letter = option[0] %}
+                                <div class="option">
+                                    <input type="radio" id="q{{ question_number }}_{{ option_letter }}" 
+                                           name="q{{ question_number }}" 
+                                           value="{{ option_letter }}" required>
+                                    <label for="q{{ question_number }}_{{ option_letter }}">{{ option }}</label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <button type="submit" class="submit-btn">Submit Answers</button>
+            </form>
+        {% endif %}
+        
+        <a href="/" class="back-btn">Back to Home</a>
+    </div>
+</body>
+</html>
