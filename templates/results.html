@@ -15,6 +15,10 @@
             color: #2ecc71;
             font-weight: bold;
         }
+        .incorrect-option {
+            color: #e74c3c;
+            font-weight: bold;
+        }
         .selected-option {
             background-color: #f0f0f0;
         }
@@ -52,7 +56,13 @@
                         
                         <div class="options">
                             {% for option in questions[question_index-1].options %}
-                                <div class="option {% if option.startswith(correct_answers.get(question_index)) %}correct-option{% endif %} {% if option.startswith(answers.get(question_index)) %}selected-option{% endif %}">
+                                <div class="option 
+                                    {% if option.startswith(correct_answers.get(question_index)) %}
+                                        correct-option
+                                    {% elif option.startswith(answers.get(question_index)) and answers.get(question_index) != correct_answers.get(question_index) %}
+                                        incorrect-option
+                                    {% endif %}
+                                    {% if option.startswith(answers.get(question_index)) %}selected-option{% endif %}">
                                     {{ option }}
                                 </div>
                             {% endfor %}
