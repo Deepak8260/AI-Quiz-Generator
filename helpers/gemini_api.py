@@ -38,7 +38,7 @@ def generate_mcqs(topic: str, level: str, num_questions: int = 20) -> list:
         Rules:
         - Make questions direct and concise
         - For code questions, always write the question first
-        - Write code directly without any markdown tags or language indicators
+        - Write code directly without any markdown tags or language indicators and with proper python indentation
         - No extra text or comments in the code
         - Always end with Correct: X where X is A, B, C, or D
         - Make all options relevant and realistic
