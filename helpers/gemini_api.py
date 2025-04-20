@@ -13,7 +13,14 @@ def generate_mcqs(topic: str, level: str, num_questions: int = 20) -> list:
     
     try:
         prompt = f"""
-        Generate {num_questions} technical multiple-choice questions about **{topic}** for **{level}** level learners.
+        Generate {num_questions} well-structured multiple-choice questions on the topic: **{topic}**, suitable for learners at the **{level}** level.
+
+💡 Adapt based on the nature of the topic:
+- If the topic involves coding, programming, or data science (e.g., regression, algorithms, libraries), then include a mix of **conceptual and code-based MCQs**. Code questions should reflect real-world use cases and follow proper indentation without markdown.
+- If the topic is academic or non-programming (e.g., math, civics, physics, finance), then only include **conceptual or factual MCQs**. Avoid including any code.
+
+The goal is to make the questions engaging, well-aligned with the topic, and appropriate for the given learner level.
+
 
         Format each question exactly like this:
 
