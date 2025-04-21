@@ -26,12 +26,12 @@
                         <div class="options">
                             {% for option in question.options %}
                                 {% set option_letter = option[0] %}
-                                <div class="option">
-                                    <input type="radio" id="q{{ question_number }}_{{ option_letter }}" 
+                                <label class="option">
+                                    <input type="radio" 
                                            name="q{{ question_number }}" 
                                            value="{{ option_letter }}" required>
-                                    <label for="q{{ question_number }}_{{ option_letter }}">{{ option }}</label>
-                                </div>
+                                    <span class="option-text">{{ option }}</span>
+                                </label>
                             {% endfor %}
                         </div>
                     </div>
