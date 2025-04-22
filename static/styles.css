@@ -179,10 +179,56 @@ input:focus, select:focus {
     box-shadow: 0 12px 20px rgba(124, 58, 237, 0.35);
 }
 
-/* Update the action buttons styles */
-.action-buttons {
+/* Add this to match the action buttons styling */
+.submit-answers-container {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding: 2rem 0;
+    width: 100%;
+}
+
+.submit-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    margin: 0;
+    border: none;
+    cursor: pointer;
+}
+
+.submit-btn:hover, .bottom-back-home:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .submit-answers-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .submit-btn, .bottom-back-home {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Action buttons container */
+.action-buttons {
+    display: flex;
+    justify-content: space-between;  /* Changed from flex-start to space-between */
     align-items: center;
     margin-top: 2rem;
     padding: 2rem 0;
