@@ -179,32 +179,13 @@ input:focus, select:focus {
     box-shadow: 0 12px 20px rgba(124, 58, 237, 0.35);
 }
 
-/* Style back to home link */
-.back-to-home {
-    display: inline-block;
-    color: var(--text-muted);
-    text-decoration: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    margin-top: 2rem;
-}
-
-.back-to-home:hover {
-    color: white;
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Action buttons container */
+/* Update the action buttons styles */
 .action-buttons {
-     display: flex;
-    justify-content: space-between;  /* Changed from center */
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    margin-top: 3rem;
-    padding-top: 2rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 2rem;
+    padding: 2rem 0;
     width: 100%;
 }
 
@@ -221,19 +202,20 @@ input:focus, select:focus {
     font-size: 1.1rem;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    margin: 0;
+    border: none;
+    cursor: pointer;
 }
 
 .back-to-home:hover, .try-another-quiz:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
-    color: white;  /* Ensure text stays white on hover */
+    opacity: 0.9;
 }
 
-/* Remove the duplicate .action-buttons class that appears later in the file */
-.try-another-quiz:hover {
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+.back-to-home svg,.try-another-quiz svg {
+    margin-right: 0.5rem;
 }
-
 @media (max-width: 768px) {
     .action-buttons {
         flex-direction: column;
