@@ -9,7 +9,7 @@ from typing import Optional
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-def generate_mcqs(topic: str, level: str, num_questions: int = 10) -> list:
+def generate_mcqs(topic: str, level: str, num_questions: int = 20) -> list:
     try:
         processed_questions = generate_and_process_questions(topic, level, num_questions)
         
@@ -45,7 +45,7 @@ def generate_and_process_questions(topic: str, level: str, num: int) -> list:
             Correct: X
 
             ───────────────────────────────
-            Example with code:
+            ✔ Example with code:
             What will this code output?
 
             df = pd.DataFrame({{'A': [1, 2], 'B': [3, 4]}})
@@ -55,30 +55,6 @@ def generate_and_process_questions(topic: str, level: str, num: int) -> list:
             B) (2, 1)  
             C) (1, 2)  
             D) (4, 2)  
-            Correct: A
-
-            Example with multiline output:
-            What will be the result of executing the following code?
-
-            s = pd.Series([5.0, 7.0, None], name="C")
-            print(s)
-
-            A)
-            0    5.0
-            1    7.0
-            2    NaN
-            Name: C, dtype: float64
-            B)
-            0    5.0
-            1    7.0
-            2    0.0
-            Name: C, dtype: float64
-            C)
-            0.0
-            7.0
-            NaN
-            D)
-            [5.0, 7.0, nan]
             Correct: A
 
             ✔ Example without code:
@@ -92,47 +68,21 @@ def generate_and_process_questions(topic: str, level: str, num: int) -> list:
             ───────────────────────────────
             Guidelines:
 
-            1. Each question **must have exactly four options**, labeled A) through D), followed by a **'Correct: X'** line on a separate line.
-            2. For technical or coding-related topics (like Python, Pandas, SQL, NumPy, etc.):
-                - Include a mix of:
-                    - Conceptual questions
-                    - Code-based questions using realistic, minimal code snippets
-                - Code must:
-                    - Be written exactly as it would appear in a script (no markdown or quotes)
-                    - Be properly indented and placed directly after the question (if applicable)
-            3. If the answer options include **multiline outputs**, such as:
-                - Series
-                - DataFrames
-                - `print()` results
-                - NumPy arrays
-                - Console-style representations  
-            ➤ Then **wrap the entire output inside triple backticks ( ``` )** to mimic real Python terminal display.
-            4. **Do not include markdown formatting like `**bold**`, `# headings`, emojis, or comments.**
-            5. If **any option (A–D) or the 'Correct:' line is missing**, regenerate the entire question.
-            6. Questions must be **clear, self-contained, and properly formatted**.
-            7. For the **"hard" level**:
-                - Include advanced scenarios, uncommon edge cases, or trick questions.
-                - Code snippets should challenge deep understanding of behavior, performance, or memory.
-                - But **still follow the exact MCQ format with A–D options and a Correct: X line**.
-
-            **Additional Output Formatting Rule**:
-
-            - If the MCQ involves printing output from code (e.g., using `print()`), the **options must reflect the output exactly as it would appear in a real terminal or console**.
-            - This includes:
-            - Proper line breaks
-            - Indentation
-            - Tabular/structured formats (like from `pandas.DataFrame` or similar libraries)
-            - Avoid writing DataFrame outputs inline; **show them as console-printed blocks**, like:
-
-                ```
-                B
-                A   
-                0  5
-                1 10
-                ```
-
-            - **Do not compress** multi-line outputs into single-line strings like `A B 0 5 1 10`.
-            - This formatting rule **applies to all code outputs**, not just Pandas — including outputs from NumPy, Python print statements, custom objects, or standard output formatting.
+            1. Each question **must have exactly four options**, labeled A) through D), followed by a **'Correct: X'** line on a separate line — **regardless of difficulty level (easy, medium, or hard)**.
+            2. For technical or coding-related topics (like Python, Pandas, SQL, ML, etc.):
+            - Include a mix of:
+                - Conceptual questions
+                - Code-based questions using realistic, minimal code snippets
+            - Code must:
+                - Be written exactly as it would appear in a script (no markdown or quotes)
+                - Be properly indented and placed directly after the question (if applicable)
+            3. **Do not include markdown**, quotes, comments, extra line breaks, or emojis.
+            4. If **any option (A–D) or the 'Correct:' line is missing**, you must regenerate the entire question.
+            5. Questions must be **clear, self-contained, and properly formatted**.
+            6. For the **"hard" level**:
+            - Include advanced scenarios, uncommon edge cases, or trick questions.
+            - Code snippets should challenge deep understanding of behavior, performance, or memory.
+            - But **still follow the exact MCQ format with A–D options and Correct: X** line.
 
             The goal is to ensure every question is **complete**, **cleanly formatted**, and **ready to use**, even at the hard level.
 
@@ -143,59 +93,54 @@ def generate_and_process_questions(topic: str, level: str, num: int) -> list:
     response = model.generate_content(prompt)
     text = response.text.strip()
 
-    processed_questions = []
-    current_question = {
-        "question": "",
-        "code": None,
-        "options": [],
-        "correct_answer": None
-    }
-    code_buffer = []
-
+    # Parse and process questions
+    questions = []
+    current_question = []
     for line in text.split('\n'):
-        line = line.rstrip()
+        line = line.strip()
+        if not line and current_question and any(l.startswith("Correct:") for l in current_question):
+            questions.append('\n'.join(current_question))
+            current_question = []
+        elif not line.startswith('Question') and not line.startswith('─'):
+            current_question.append(line)
+    
+    # Add last question if any
+    if current_question and any(l.startswith("Correct:") for l in current_question):
+        questions.append('\n'.join(current_question))
 
-        # Skip empty lines but save question if it's complete
-        if not line.strip():
-            if current_question["question"] and len(current_question["options"]) == 4:
-                if code_buffer:
-                    current_question["code"] = '\n'.join(code_buffer)
-                processed_questions.append(current_question.copy())
-
-                # Reset for next question
-                current_question = {
-                    "question": "",
-                    "code": None,
-                    "options": [],
-                    "correct_answer": None
-                }
-                code_buffer = []
+    processed_questions = []
+    for q_text in questions:
+        if not q_text.strip() or 'Correct:' not in q_text:
             continue
+        
+        lines = q_text.split('\n')
+        question_text = next((line for line in lines if line.strip()), '')
+        options_pattern = re.compile(r"([A-D]\).*?)(?=[A-D]\)|Correct:|$)", re.DOTALL)
+        options = options_pattern.findall(q_text)
+        correct_answer_pattern = re.compile(r"Correct:\s*([A-D])", re.IGNORECASE)
+        correct_answer_match = correct_answer_pattern.search(q_text)
+        correct_answer = correct_answer_match.group(1) if correct_answer_match else 'A'
 
-        # Handle options like A), B), etc.
-        if line.strip().startswith(('A)', 'B)', 'C)', 'D)')):
-            if code_buffer:
-                current_question["code"] = '\n'.join(code_buffer)
-                code_buffer = []
-            current_question["options"].append(line[2:].strip())
-            continue
-
-        # Handle correct answer
-        if line.strip().startswith('Correct:'):
-            current_question["correct_answer"] = line.split(':', 1)[1].strip()
-            continue
-
-        # Handle question or code
-        if not current_question["options"]:
-            if not current_question["question"]:
-                current_question["question"] = line.strip()
-            else:
-                code_buffer.append(line)
-
-    # Save the last question if it's complete
-    if current_question["question"] and len(current_question["options"]) == 4:
-        if code_buffer:
-            current_question["code"] = '\n'.join(code_buffer)
-        processed_questions.append(current_question)
+        if question_text and len(options) == 4:
+            processed_questions.append({
+                "question": question_text,
+                "code": extract_code(q_text),
+                "options": [opt.strip() for opt in options],
+                "correct_answer": correct_answer
+            })
 
     return processed_questions
+
+def extract_code(text: str) -> Optional[str]:
+    lines = text.split('\n')
+    code_lines = []
+    in_code = False
+    for line in lines[1:]:
+        line_stripped = line.strip()
+        if line_stripped.startswith('A)'):
+            break
+        if line_stripped.startswith('import') or '=' in line_stripped:
+            in_code = True
+        if in_code and line_stripped:
+            code_lines.append(line)
+    return '\n'.join(code_lines) if code_lines else None
