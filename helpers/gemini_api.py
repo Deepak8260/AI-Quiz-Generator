@@ -89,7 +89,7 @@ def generate_and_process_questions(topic: str, level: str, num: int) -> list:
             Now generate {num} complete and valid MCQs for the topic: "{topic}".
             """
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("models/gemini-2.5-flash")
     response = model.generate_content(prompt)
     text = response.text.strip()
 
