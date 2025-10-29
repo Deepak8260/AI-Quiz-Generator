@@ -3,11 +3,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from helpers.gemini_api import generate_mcqs
 from typing import Dict, List, Optional
-from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse, StreamingResponse
 import json
 from PIL import Image, ImageDraw, ImageFont
-from pdf2image import convert_from_path
 import os
+from io import BytesIO
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -130,17 +130,19 @@ async def generate_certificate():
     """Generate certificate image using stored name and return it as a download.
     The user's name must have been saved in `quiz_data['name']` when they generated the quiz.
     """
-    template_pdf = "static/certificates/cert.pdf"
-
     name = quiz_data.get('name')
     if not name:
         raise HTTPException(status_code=400, detail="No name found. Please enter your name on the home page before generating a quiz.")
 
-    # Convert first page of PDF template to image
-    images = convert_from_path(template_pdf)
-    image = images[0].convert("RGB")
+    # Load the certificate template
+    template_path = "static/certificates/cert.png"  # Use PNG instead of PDF
+    try:
+        image = Image.open(template_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading certificate template: {str(e)}")
 
     draw = ImageDraw.Draw(image)
+
     # Try to use a more elegant font, fallback to arial if not found
     try:
         font = ImageFont.truetype("BRUSHSCI.TTF", 120)  # Brush Script MT
@@ -150,8 +152,10 @@ async def generate_certificate():
         except:
             font = ImageFont.truetype("arial.ttf", 100)  # Fallback with larger size
 
-    # Center text
+    # Get image dimensions
     W, H = image.size
+    
+    # Center name
     text = name.title()
     bbox = draw.textbbox((0, 0), text, font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -160,12 +164,34 @@ async def generate_certificate():
     # Draw the name
     draw.text(position, text, fill="black", font=font)
 
-    # Save generated certificate image
-    img_path = os.path.join(GENERATED_DIR, f"{name}_certificate.png")
-    image.save(img_path)
+    # Add score if needed
+    score = quiz_data.get('score', 0)
+    total = quiz_data.get('total_questions', 0)
+    score_text = f"Score: {score}/{total} ({(score/total*100):.1f}%)"
+    
+    try:
+        score_font = ImageFont.truetype("arial.ttf", 60)
+    except:
+        score_font = font
 
-    # Return file directly so browser prompts for download / preview
-    return FileResponse(img_path, media_type="image/png", filename=f"{name}_certificate.png")
+    score_bbox = draw.textbbox((0, 0), score_text, font=score_font)
+    score_w = score_bbox[2] - score_bbox[0]
+    score_position = ((W - score_w) / 2, H - 200)
+    draw.text(score_position, score_text, fill="#7C3AED", font=score_font)
+
+    # Save to memory buffer
+    img_byte_arr = BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+
+    # Return the image directly from memory
+    return StreamingResponse(
+        img_byte_arr,
+        media_type="image/png",
+        headers={
+            'Content-Disposition': f'attachment; filename="{name}_certificate.png"'
+        }
+    )
 
 @app.get("/preview/{filename}")
 async def preview_certificate(filename: str):
