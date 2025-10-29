@@ -3,12 +3,19 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from helpers.gemini_api import generate_mcqs
 from typing import Dict, List, Optional
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
 import json
+from PIL import Image, ImageDraw, ImageFont
+from pdf2image import convert_from_path
+import os
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Directory for generated certificates
+GENERATED_DIR = "generated"
+os.makedirs(GENERATED_DIR, exist_ok=True)
 
 # Store questions in memory (in a real app, use a proper session management)
 quiz_data = {}
@@ -75,6 +82,10 @@ async def submit_quiz(request: Request):
         score = sum(1 for q, a in answers.items() if a == correct_answers.get(q, ''))
         total_questions = len(questions)
         
+        # Check if score is good enough for certificate (e.g., 70% or better)
+        passing_score = total_questions * 0.7
+        can_get_certificate = score >= passing_score
+        
         return templates.TemplateResponse(
             "results.html",
             {
@@ -83,12 +94,55 @@ async def submit_quiz(request: Request):
                 "total_questions": total_questions,
                 "answers": answers,
                 "correct_answers": correct_answers,
-                "questions": questions
+                "questions": questions,
+                "can_get_certificate": can_get_certificate
             }
         )
     except Exception as e:
         print("Error:", str(e))  # Debug print
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-certificate")
+async def generate_certificate(name: str = Form(...)):
+    template_pdf = "static/certificates/cert.pdf"
+
+    # Convert first page of PDF template to image
+    images = convert_from_path(template_pdf)
+    image = images[0].convert("RGB")
+
+    draw = ImageDraw.Draw(image)
+    # Try to use a more elegant font, fallback to arial if not found
+    try:
+        font = ImageFont.truetype("BRUSHSCI.TTF", 120)  # Brush Script MT
+    except:
+        try:
+            font = ImageFont.truetype("SCRIPTBL.TTF", 120)  # Script Bold
+        except:
+            font = ImageFont.truetype("arial.ttf", 100)  # Fallback with larger size
+
+    # Center text
+    W, H = image.size
+    text = name.title()
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    position = ((W - w) / 2, (H / 2) - 50)  # Adjusted position
+
+    # Draw the name
+    draw.text(position, text, fill="black", font=font)
+
+    # Save generated certificate image
+    img_path = os.path.join(GENERATED_DIR, f"{name}_certificate.png")
+    image.save(img_path)
+
+    # Redirect to preview
+    return RedirectResponse(url=f"/preview/{name}_certificate.png", status_code=303)
+
+@app.get("/preview/{filename}")
+async def preview_certificate(filename: str):
+    """
+    Direct image preview with download option
+    """
+    return FileResponse(f"generated/{filename}", media_type="image/png")
 
 if __name__ == "__main__":
     import uvicorn
