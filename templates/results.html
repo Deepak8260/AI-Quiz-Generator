@@ -74,15 +74,10 @@
         
         <div class="action-buttons">
             <a href="/" class="back-to-home">Back to Home</a>
-            {% if can_get_certificate %}
-            <div class="certificate-section">
-                <h3>🎉 Congratulations! You qualify for a certificate!</h3>
-                <!-- Download uses stored name from the home page -->
-                <a href="/generate-certificate" class="generate-certificate">Download Certificate</a>
+            <div class="button-group">
+                <a href="/check-eligibility" class="generate-certificate">Check Certificate Eligibility</a>
+                <a href="/" class="try-another-quiz">Try Another Quiz</a>
             </div>
-            {% else %}
-            <a href="/" class="try-another-quiz">Try Another Quiz</a>
-            {% endif %}
         </div>
     </div>
 </body>

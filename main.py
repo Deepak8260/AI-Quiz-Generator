@@ -24,6 +24,27 @@ quiz_data = {}
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/check-eligibility")
+async def check_eligibility(request: Request):
+    """Check if the user is eligible for a certificate based on their quiz score"""
+    score = quiz_data.get('score', 0)
+    total_questions = quiz_data.get('total_questions', 0)
+    is_eligible = False
+    
+    if total_questions > 0:
+        percentage = (score / total_questions) * 100
+        is_eligible = percentage >= 70
+    
+    return templates.TemplateResponse(
+        "certificate_eligibility.html",
+        {
+            "request": request,
+            "score": score,
+            "total_questions": total_questions,
+            "is_eligible": is_eligible
+        }
+    )
+
 @app.post("/generate-quiz")
 async def create_quiz(
     request: Request,
@@ -85,9 +106,9 @@ async def submit_quiz(request: Request):
         score = sum(1 for q, a in answers.items() if a == correct_answers.get(q, ''))
         total_questions = len(questions)
         
-        # Check if score is good enough for certificate (e.g., 70% or better)
-        passing_score = total_questions * 0.7
-        can_get_certificate = score >= passing_score
+        # Store score in quiz_data for the certificate eligibility check
+        quiz_data['score'] = score
+        quiz_data['total_questions'] = total_questions
         
         return templates.TemplateResponse(
             "results.html",
@@ -97,8 +118,7 @@ async def submit_quiz(request: Request):
                 "total_questions": total_questions,
                 "answers": answers,
                 "correct_answers": correct_answers,
-                "questions": questions,
-                "can_get_certificate": can_get_certificate
+                "questions": questions
             }
         )
     except Exception as e:
