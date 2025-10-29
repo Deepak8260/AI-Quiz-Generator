@@ -27,6 +27,7 @@ async def home(request: Request):
 @app.post("/generate-quiz")
 async def create_quiz(
     request: Request,
+    name: str = Form(...),
     topic: str = Form(...),
     level: str = Form(...),
     num_questions: int = Form(default=20)
@@ -41,6 +42,8 @@ async def create_quiz(
         
         # Store questions in memory
         quiz_data['questions'] = questions
+        # Store user's name so we can generate a certificate later
+        quiz_data['name'] = name
         
         return templates.TemplateResponse(
             "quiz.html",
@@ -102,9 +105,16 @@ async def submit_quiz(request: Request):
         print("Error:", str(e))  # Debug print
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/generate-certificate")
-async def generate_certificate(name: str = Form(...)):
+@app.get("/generate-certificate")
+async def generate_certificate():
+    """Generate certificate image using stored name and return it as a download.
+    The user's name must have been saved in `quiz_data['name']` when they generated the quiz.
+    """
     template_pdf = "static/certificates/cert.pdf"
+
+    name = quiz_data.get('name')
+    if not name:
+        raise HTTPException(status_code=400, detail="No name found. Please enter your name on the home page before generating a quiz.")
 
     # Convert first page of PDF template to image
     images = convert_from_path(template_pdf)
@@ -134,8 +144,8 @@ async def generate_certificate(name: str = Form(...)):
     img_path = os.path.join(GENERATED_DIR, f"{name}_certificate.png")
     image.save(img_path)
 
-    # Redirect to preview
-    return RedirectResponse(url=f"/preview/{name}_certificate.png", status_code=303)
+    # Return file directly so browser prompts for download / preview
+    return FileResponse(img_path, media_type="image/png", filename=f"{name}_certificate.png")
 
 @app.get("/preview/{filename}")
 async def preview_certificate(filename: str):

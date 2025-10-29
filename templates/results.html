@@ -77,10 +77,8 @@
             {% if can_get_certificate %}
             <div class="certificate-section">
                 <h3>🎉 Congratulations! You qualify for a certificate!</h3>
-                <form action="/generate-certificate" method="post">
-                    <input type="text" name="name" placeholder="Enter your name" required>
-                    <button type="submit" class="generate-certificate">Generate Certificate</button>
-                </form>
+                <!-- Download uses stored name from the home page -->
+                <a href="/generate-certificate" class="generate-certificate">Download Certificate</a>
             </div>
             {% else %}
             <a href="/" class="try-another-quiz">Try Another Quiz</a>
