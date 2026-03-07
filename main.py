@@ -23,12 +23,16 @@ quiz_data = {}
 
 @app.get("/")
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    error = request.query_params.get("error")
+    return templates.TemplateResponse("index.html", {"request": request, "error": error})
 
 @app.get("/check-eligibility")
 async def check_eligibility(request: Request):
     """Check if the user is eligible for a certificate based on their quiz score"""
-    score = quiz_data.get('score', 0)
+    score = quiz_data.get('score')
+    if score is None:
+        return RedirectResponse(url="/?error=session_expired", status_code=303)
+
     total_questions = quiz_data.get('total_questions', 0)
     is_eligible = False
     
@@ -89,7 +93,8 @@ async def submit_quiz(request: Request):
         # Get questions from stored data
         questions = quiz_data.get('questions', [])
         if not questions:
-            raise HTTPException(status_code=400, detail="No questions found. Please generate a new quiz.")
+            # Session expired (e.g. server restarted) — redirect home gracefully
+            return RedirectResponse(url="/?error=session_expired", status_code=303)
         
         # Extract answers from form data
         answers = {}
@@ -123,7 +128,7 @@ async def submit_quiz(request: Request):
             }
         )
     except Exception as e:
-        print("Error:", str(e))  # Debug print
+        print("Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/generate-certificate")

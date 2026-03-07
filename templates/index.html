@@ -27,6 +27,25 @@
         <span class="navbar-badge">✦ Gemini Powered</span>
     </nav>
 
+    <!-- Session Expired Banner -->
+    {% if error == "session_expired" %}
+    <div style="
+        display: flex; align-items: center; gap: 0.75rem;
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        border-radius: 14px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        animation: fadeUp 0.4s ease;
+    ">
+        <span style="font-size:1.3rem;">⚠️</span>
+        <div>
+            <div style="font-size:0.9rem; font-weight:700; color:#FCD34D; margin-bottom:0.15rem;">Session Expired</div>
+            <div style="font-size:0.82rem; color:var(--text-muted);">The server was restarted and your quiz session was cleared. Please generate a new quiz below.</div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Main Card -->
     <div class="card">
         <div class="page-header">
