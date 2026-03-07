@@ -1,41 +1,25 @@
 """
-database.py — SQLite persistence layer for AI Quiz Generator
-Handles all quiz attempt storage and admin queries.
+database.py — Supabase persistence layer for AI Quiz Generator
+Replaces the SQLite implementation. All data lives in Supabase cloud.
 """
 
-import sqlite3
 import os
+from collections import Counter
 from datetime import datetime, timezone
-from typing import Optional
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "quiz_history.db")
+load_dotenv()
+
+SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+TABLE = "quiz_attempts"
 
 
-def get_conn() -> sqlite3.Connection:
-    """Return a connection with row_factory so rows behave like dicts."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def init_db() -> None:
-    """Create tables if they don't already exist."""
-    with get_conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS quiz_attempts (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                name             TEXT    NOT NULL,
-                topic            TEXT    NOT NULL,
-                level            TEXT    NOT NULL,
-                num_questions    INTEGER NOT NULL,
-                score            INTEGER NOT NULL,
-                percentage       REAL    NOT NULL,
-                certificate_earned INTEGER NOT NULL DEFAULT 0,
-                timestamp        TEXT    NOT NULL
-            )
-        """)
-        conn.commit()
-
+# ── Write ─────────────────────────────────────────────────────────────────
 
 def save_attempt(
     name: str,
@@ -43,110 +27,98 @@ def save_attempt(
     level: str,
     num_questions: int,
     score: int,
-) -> int:
-    """Insert a quiz attempt and return its new id."""
-    percentage = round((score / num_questions) * 100, 1) if num_questions else 0.0
-    certificate_earned = 1 if percentage >= 70 else 0
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+) -> None:
+    """Insert a new quiz attempt into Supabase."""
+    percentage         = round((score / num_questions) * 100, 1) if num_questions else 0.0
+    certificate_earned = percentage >= 70
+    timestamp          = datetime.now(timezone.utc).isoformat()
 
-    with get_conn() as conn:
-        cur = conn.execute("""
-            INSERT INTO quiz_attempts
-                (name, topic, level, num_questions, score, percentage, certificate_earned, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (name, topic, level, num_questions, score, percentage, certificate_earned, timestamp))
-        conn.commit()
-        return cur.lastrowid
+    supabase.table(TABLE).insert({
+        "name":               name,
+        "topic":              topic,
+        "level":              level,
+        "num_questions":      num_questions,
+        "score":              score,
+        "percentage":         percentage,
+        "certificate_earned": certificate_earned,
+        "timestamp":          timestamp,
+    }).execute()
 
 
 def delete_attempt(attempt_id: int) -> None:
-    """Delete a single attempt by id."""
-    with get_conn() as conn:
-        conn.execute("DELETE FROM quiz_attempts WHERE id = ?", (attempt_id,))
-        conn.commit()
+    """Delete a single attempt by its id."""
+    supabase.table(TABLE).delete().eq("id", attempt_id).execute()
 
 
-def get_all_attempts(search: str = "", sort_by: str = "timestamp", order: str = "desc") -> list:
+# ── Read ──────────────────────────────────────────────────────────────────
+
+def get_all_attempts(
+    search: str = "",
+    sort_by: str = "timestamp",
+    order: str = "desc",
+) -> list:
     """Return all attempts, optionally filtered by name/topic search string."""
     allowed_sort = {"id", "name", "topic", "level", "score", "percentage", "timestamp"}
     if sort_by not in allowed_sort:
         sort_by = "timestamp"
-    order = "ASC" if order.lower() == "asc" else "DESC"
+    desc = order.lower() != "asc"
 
-    query = f"""
-        SELECT * FROM quiz_attempts
-        WHERE name LIKE ? OR topic LIKE ?
-        ORDER BY {sort_by} {order}
-    """
-    pattern = f"%{search}%"
-    with get_conn() as conn:
-        rows = conn.execute(query, (pattern, pattern)).fetchall()
-    return [dict(r) for r in rows]
+    query = supabase.table(TABLE).select("*")
+    if search:
+        query = query.or_(f"name.ilike.%{search}%,topic.ilike.%{search}%")
+    query = query.order(sort_by, desc=desc)
+
+    res = query.execute()
+    return res.data or []
 
 
 def get_stats() -> dict:
     """Return aggregate stats for the dashboard summary cards."""
-    with get_conn() as conn:
-        total       = conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0]
-        certs       = conn.execute("SELECT COUNT(*) FROM quiz_attempts WHERE certificate_earned=1").fetchone()[0]
-        avg_pct_row = conn.execute("SELECT AVG(percentage) FROM quiz_attempts").fetchone()[0]
-        avg_pct     = round(avg_pct_row or 0, 1)
-        unique      = conn.execute("SELECT COUNT(DISTINCT LOWER(name)) FROM quiz_attempts").fetchone()[0]
-        today_str   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        today       = conn.execute(
-            "SELECT COUNT(*) FROM quiz_attempts WHERE timestamp LIKE ?",
-            (f"{today_str}%",)
-        ).fetchone()[0]
+    rows = supabase.table(TABLE).select("*").execute().data or []
+
+    total    = len(rows)
+    certs    = sum(1 for r in rows if r.get("certificate_earned"))
+    avg_pct  = round(sum(r["percentage"] for r in rows) / total, 1) if total else 0.0
+    unique   = len(set(r["name"].lower() for r in rows))
+
+    today_str   = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today_count = sum(1 for r in rows if (r.get("timestamp") or "").startswith(today_str))
+
     return {
-        "total": total,
-        "certificates": certs,
+        "total":          total,
+        "certificates":   certs,
         "avg_percentage": avg_pct,
-        "unique_users": unique,
-        "today": today,
+        "unique_users":   unique,
+        "today":          today_count,
     }
 
 
 def get_chart_data() -> dict:
-    """Return aggregated data needed for the three dashboard charts."""
-    with get_conn() as conn:
-        # Score distribution — buckets of 20
-        buckets = {"0-20": 0, "21-40": 0, "41-60": 0, "61-80": 0, "81-100": 0}
-        for row in conn.execute("SELECT percentage FROM quiz_attempts").fetchall():
-            p = row[0]
-            if p <= 20:   buckets["0-20"]   += 1
-            elif p <= 40: buckets["21-40"]  += 1
-            elif p <= 60: buckets["41-60"]  += 1
-            elif p <= 80: buckets["61-80"]  += 1
-            else:         buckets["81-100"] += 1
+    """Return aggregated data for the three dashboard charts."""
+    rows = supabase.table(TABLE).select("percentage,topic,level").execute().data or []
 
-        # Top 6 topics by attempt count
-        topic_rows = conn.execute("""
-            SELECT topic, COUNT(*) as cnt
-            FROM quiz_attempts
-            GROUP BY LOWER(topic)
-            ORDER BY cnt DESC
-            LIMIT 6
-        """).fetchall()
-        topics = [r["topic"] for r in topic_rows]
-        topic_counts = [r["cnt"] for r in topic_rows]
+    # Score distribution — buckets of 20
+    buckets = {"0-20": 0, "21-40": 0, "41-60": 0, "61-80": 0, "81-100": 0}
+    for r in rows:
+        p = r.get("percentage", 0)
+        if p <= 20:   buckets["0-20"]   += 1
+        elif p <= 40: buckets["21-40"]  += 1
+        elif p <= 60: buckets["41-60"]  += 1
+        elif p <= 80: buckets["61-80"]  += 1
+        else:         buckets["81-100"] += 1
 
-        # Difficulty breakdown
-        diff_rows = conn.execute("""
-            SELECT level, COUNT(*) as cnt
-            FROM quiz_attempts
-            GROUP BY level
-        """).fetchall()
-        diff = {r["level"]: r["cnt"] for r in diff_rows}
+    # Top 6 topics by attempt count
+    topic_ctr = Counter(r["topic"] for r in rows if r.get("topic"))
+    top6      = topic_ctr.most_common(6)
+
+    # Difficulty breakdown
+    diff_ctr = Counter(r["level"] for r in rows if r.get("level"))
 
     return {
         "score_labels": list(buckets.keys()),
         "score_data":   list(buckets.values()),
-        "topic_labels": topics,
-        "topic_data":   topic_counts,
-        "diff_labels":  list(diff.keys()),
-        "diff_data":    list(diff.values()),
+        "topic_labels": [t[0] for t in top6],
+        "topic_data":   [t[1] for t in top6],
+        "diff_labels":  list(diff_ctr.keys()),
+        "diff_data":    list(diff_ctr.values()),
     }
-
-
-# Auto-initialise on import
-init_db()

@@ -6,5 +6,5 @@ python-dotenv>=1.0.0
 python-multipart>=0.0.6
 jinja2
 pillow
-pdf2image
 itsdangerous>=2.1.0
+supabase>=2.0.0
