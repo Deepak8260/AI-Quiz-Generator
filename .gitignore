@@ -1,10 +1,14 @@
-.env
 # Python
 __pycache__/
 *.pyc
+*.pyo
 
-# Environment variables
+# Environment variables — NEVER commit this
 .env
+
+# Virtual environment
+venv/
+.venv/
 
 # IDE settings
 .vscode/
@@ -12,11 +16,16 @@ __pycache__/
 
 # System files
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
 
-# Local development
-instance/
+# Local SQLite DB (replaced by Supabase)
+quiz_history.db
 
-/venv
+# Generated certificates (ephemeral)
+generated/
+
+# Local dev
+instance/
