@@ -21,8 +21,12 @@ from database import (
 load_dotenv()
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+
+# ── Absolute paths so Vercel serverless can find templates/static ─────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # ── Config ───────────────────────────────────────────────────────────────────
 # Use /tmp on Vercel (read-only filesystem), local folder otherwise
@@ -190,7 +194,8 @@ async def generate_certificate(request: Request):
     score           = session.get("score", 0)
     total_questions = session.get("total_questions", 0)
 
-    template_path = "static/certificates/cert.png"
+    # Absolute path — cert.png must be locatable on Vercel too
+    template_path = os.path.join(BASE_DIR, "static", "certificates", "cert.png")
     try:
         image = Image.open(template_path)
     except Exception as e:
