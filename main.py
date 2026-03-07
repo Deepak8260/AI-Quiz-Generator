@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse, Stre
 import json
 from PIL import Image, ImageDraw, ImageFont
 import os
+import re
 from io import BytesIO
 
 app = FastAPI()
@@ -143,14 +144,17 @@ async def generate_certificate():
 
     draw = ImageDraw.Draw(image)
 
-    # Try to use a more elegant font, fallback to arial if not found
+    # Try to use a more elegant font, fallback to arial / default if not found
     try:
-        font = ImageFont.truetype("BRUSHSCI.TTF", 120)  # Brush Script MT
+        font = ImageFont.truetype("BRUSHSCI.TTF", 120)
     except:
         try:
-            font = ImageFont.truetype("SCRIPTBL.TTF", 120)  # Script Bold
+            font = ImageFont.truetype("SCRIPTBL.TTF", 120)
         except:
-            font = ImageFont.truetype("arial.ttf", 100)  # Fallback with larger size
+            try:
+                font = ImageFont.truetype("arial.ttf", 100)
+            except:
+                font = ImageFont.load_default()
 
     # Get image dimensions
     W, H = image.size
@@ -184,12 +188,15 @@ async def generate_certificate():
     image.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
 
+    # Sanitize the name for use as a safe filename (no spaces, special chars)
+    safe_name = re.sub(r'[^\w]', '_', name.title()).strip('_') or 'certificate'
+
     # Return the image directly from memory
     return StreamingResponse(
         img_byte_arr,
         media_type="image/png",
         headers={
-            'Content-Disposition': f'attachment; filename="{name}_certificate.png"'
+            'Content-Disposition': f'attachment; filename="{safe_name}_certificate.png"'
         }
     )
 
