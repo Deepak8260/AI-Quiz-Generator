@@ -3,12 +3,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from helpers.gemini_api import generate_mcqs
 from typing import Dict, List, Optional
-from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
 import json
 from PIL import Image, ImageDraw, ImageFont
 import os
 import re
-from io import BytesIO
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -188,21 +187,19 @@ async def generate_certificate():
     score_position = ((W - score_w) / 2, H - 200)
     draw.text(score_position, score_text, fill="#7C3AED", font=score_font)
 
-    # Save to memory buffer
-    img_byte_arr = BytesIO()
-    image.save(img_byte_arr, format='PNG')
-    img_byte_arr.seek(0)
-
     # Sanitize the name for use as a safe filename (no spaces, special chars)
     safe_name = re.sub(r'[^\w]', '_', name.title()).strip('_') or 'certificate'
+    cert_filename = f"{safe_name}_certificate.png"
+    cert_path = os.path.join(GENERATED_DIR, cert_filename)
 
-    # Return the image directly from memory
-    return StreamingResponse(
-        img_byte_arr,
-        media_type="image/png",
-        headers={
-            'Content-Disposition': f'attachment; filename="{safe_name}_certificate.png"'
-        }
+    # Save to disk — FileResponse is more reliable than StreamingResponse
+    # for ensuring browsers use the correct filename with .png extension
+    image.save(cert_path, format='PNG')
+
+    return FileResponse(
+        path=cert_path,
+        filename=cert_filename,
+        media_type="image/png"
     )
 
 @app.get("/preview/{filename}")
