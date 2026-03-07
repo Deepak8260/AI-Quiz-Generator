@@ -51,12 +51,13 @@
         </div>
 
         {% if questions %}
-        <form action="/submit-quiz" method="post" id="quizForm">
+        <!-- data-total removes the need for Jinja2 inside <script> -->
+        <form action="/submit-quiz" method="post" id="quizForm" data-total="{{ questions|length }}">
             {% for question in questions %}
-            {% set question_number = loop.index %}
-            <div class="question-block" id="qblock-{{ question_number }}">
+            {% set qnum = loop.index %}
+            <div class="question-block" id="qblock-{{ qnum }}">
 
-                <div class="question-num">Question {{ question_number }}</div>
+                <div class="question-num">Question {{ qnum }}</div>
                 <div class="question-text">{{ question.question }}</div>
 
                 {% if question.code %}
@@ -65,16 +66,16 @@
                 </div>
                 {% endif %}
 
-                <div class="options" id="opts-{{ question_number }}">
+                <!-- data-qnum removes the need for Jinja2 inside onclick -->
+                <div class="options" id="opts-{{ qnum }}" data-qnum="{{ qnum }}">
                     {% for option in question.options %}
-                    {% set option_letter = option[0] %}
-                    <label class="option" id="opt-{{ question_number }}-{{ option_letter }}"
-                           onclick="selectOption({{ question_number }}, this)">
+                    {% set opt_letter = option[0] %}
+                    <label class="option" id="opt-{{ qnum }}-{{ opt_letter }}">
                         <input type="radio"
-                               name="q{{ question_number }}"
-                               value="{{ option_letter }}"
+                               name="q{{ qnum }}"
+                               value="{{ opt_letter }}"
                                required>
-                        <span class="option-letter">{{ option_letter }}</span>
+                        <span class="option-letter">{{ opt_letter }}</span>
                         <span class="option-text">{{ option[3:] }}</span>
                     </label>
                     {% endfor %}
@@ -99,45 +100,57 @@
 </div>
 
 <script>
-const totalQuestions = {{ questions|length }};
+// Read total from data attribute — no Jinja2 needed inside JS
+const form = document.getElementById('quizForm');
+const totalQuestions = form ? parseInt(form.dataset.total, 10) : 0;
 let answered = new Set();
 
-function selectOption(qNum, labelEl) {
-    // Remove selected from siblings
-    const container = document.getElementById('opts-' + qNum);
-    container.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+// Event delegation on each options container — no inline onclick with Jinja2
+document.querySelectorAll('.options').forEach(function(container) {
+    container.addEventListener('click', function(e) {
+        var label = e.target.closest('.option');
+        if (!label) return;
 
-    // Select this one
-    labelEl.classList.add('selected');
-    const radio = labelEl.querySelector('input[type="radio"]');
-    if (radio) radio.checked = true;
+        var qNum = parseInt(container.dataset.qnum, 10);
 
-    answered.add(qNum);
-    updateProgress();
-}
+        // Deselect siblings
+        container.querySelectorAll('.option').forEach(function(o) {
+            o.classList.remove('selected');
+        });
+
+        // Select clicked
+        label.classList.add('selected');
+        var radio = label.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+
+        answered.add(qNum);
+        updateProgress();
+    });
+});
 
 function updateProgress() {
-    const count = answered.size;
-    const pct = (count / totalQuestions * 100).toFixed(0);
+    var count = answered.size;
+    var pct = totalQuestions > 0 ? Math.round(count / totalQuestions * 100) : 0;
     document.getElementById('progressBar').style.width = pct + '%';
     document.getElementById('answered-counter').textContent = count + ' / ' + totalQuestions + ' answered';
 
-    const btn = document.getElementById('submitBtn');
+    var btn = document.getElementById('submitBtn');
     if (count === totalQuestions) {
         btn.style.background = 'linear-gradient(135deg, #10B981, #059669)';
         btn.style.boxShadow = '0 8px 28px rgba(16,185,129,0.45)';
     }
 }
 
-// Validation: don't submit if not all answered
-document.getElementById('quizForm').addEventListener('submit', function(e) {
-    if (answered.size < totalQuestions) {
-        e.preventDefault();
-        const unanswered = totalQuestions - answered.size;
-        alert(`Please answer all questions. You still have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}.`);
-        return;
-    }
-});
+// Prevent submission if not all answered
+if (form) {
+    form.addEventListener('submit', function(e) {
+        if (answered.size < totalQuestions) {
+            e.preventDefault();
+            var unanswered = totalQuestions - answered.size;
+            alert('Please answer all questions. You still have ' + unanswered + ' unanswered question' + (unanswered > 1 ? 's' : '') + '.');
+        }
+    });
+}
 </script>
 </body>
 </html>

@@ -7,11 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
 </head>
 <body>
-
-{% set pct = (score / total_questions * 100) | round(1) %}
-{% set correct_count = score %}
-{% set wrong_count = total_questions - score %}
-
 <div class="page-wrapper">
 
     <!-- Navbar -->
@@ -24,6 +19,10 @@
     </nav>
 
     <div class="card">
+
+        <!-- Pre-compute vars cleanly -->
+        {% set pct = (score / total_questions * 100) | round(1) %}
+        {% set wrong_count = total_questions - score %}
 
         <!-- Score Hero -->
         <div class="score-hero">
@@ -53,7 +52,7 @@
         <!-- Stats Row -->
         <div class="stats-row">
             <div class="stat-card stat-correct">
-                <div class="stat-val">{{ correct_count }}</div>
+                <div class="stat-val">{{ score }}</div>
                 <div class="stat-label">✓ Correct</div>
             </div>
             <div class="stat-card stat-wrong">
@@ -71,45 +70,49 @@
 
         {% for question_index in range(1, total_questions + 1) %}
         {% if questions and questions|length >= question_index %}
-        {% set q = questions[question_index - 1] %}
-        {% set user_ans = answers.get(question_index) %}
-        {% set correct_ans = correct_answers.get(question_index) %}
-        {% set is_correct = user_ans == correct_ans %}
+            {% set q = questions[question_index - 1] %}
+            {% set user_ans = answers.get(question_index) %}
+            {% set correct_ans = correct_answers.get(question_index) %}
+            {% set is_correct = user_ans == correct_ans %}
+            {% set block_class = "question-block correct" if is_correct else "question-block incorrect" %}
+            {% set ind_class = "result-indicator correct-ind" if is_correct else "result-indicator incorrect-ind" %}
+            {% set ind_text = "✓ Correct" if is_correct else "✗ Incorrect" %}
 
-        <div class="question-block {{ 'correct' if is_correct else 'incorrect' }}"
-             style="animation-delay: {{ loop.index * 0.05 }}s">
+            <div class="{{ block_class }}">
+                <span class="{{ ind_class }}">{{ ind_text }}</span>
+                <div class="question-num">Question {{ question_index }}</div>
+                <div class="question-text">{{ q.question }}</div>
 
-            <span class="result-indicator {{ 'correct-ind' if is_correct else 'incorrect-ind' }}">
-                {{ '✓ Correct' if is_correct else '✗ Incorrect' }}
-            </span>
-            <div class="question-num">Question {{ question_index }}</div>
-            <div class="question-text">{{ q.question }}</div>
-
-            {% if q.code %}
-            <div class="code-block">
-                <pre><code>{{ q.code }}</code></pre>
-            </div>
-            {% endif %}
-
-            <div class="options">
-                {% for option in q.options %}
-                {% set opt_letter = option[0] %}
-                <div class="option
-                    {% if opt_letter == correct_ans %}correct-opt
-                    {% elif opt_letter == user_ans and not is_correct %}wrong-opt
-                    {% endif %}">
-                    <span class="option-letter">{{ opt_letter }}</span>
-                    <span class="option-text">{{ option[3:] }}</span>
-                    {% if opt_letter == correct_ans %}
-                        <span style="margin-left:auto; font-size:0.8rem; font-weight:700; color:var(--success);">✓ Correct</span>
-                    {% elif opt_letter == user_ans and not is_correct %}
-                        <span style="margin-left:auto; font-size:0.8rem; font-weight:700; color:var(--error);">Your Pick</span>
-                    {% endif %}
+                {% if q.code %}
+                <div class="code-block">
+                    <pre><code>{{ q.code }}</code></pre>
                 </div>
-                {% endfor %}
-            </div>
+                {% endif %}
 
-        </div>
+                <div class="options">
+                    {% for option in q.options %}
+                    {% set opt_letter = option[0] %}
+                    {% if opt_letter == correct_ans %}
+                        {% set opt_class = "option correct-opt" %}
+                    {% elif opt_letter == user_ans and not is_correct %}
+                        {% set opt_class = "option wrong-opt" %}
+                    {% else %}
+                        {% set opt_class = "option" %}
+                    {% endif %}
+
+                    <div class="{{ opt_class }}">
+                        <span class="option-letter">{{ opt_letter }}</span>
+                        <span class="option-text">{{ option[3:] }}</span>
+                        {% if opt_letter == correct_ans %}
+                            <span class="opt-badge opt-correct">✓ Correct</span>
+                        {% elif opt_letter == user_ans and not is_correct %}
+                            <span class="opt-badge opt-wrong">Your Pick</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
         {% endif %}
         {% endfor %}
 
@@ -132,6 +135,5 @@
 
     </div>
 </div>
-
 </body>
 </html>

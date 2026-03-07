@@ -7,9 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
 </head>
 <body>
-
-{% set pct = (score / total_questions * 100) | round(1) %}
-
 <div class="page-wrapper">
 
     <!-- Navbar -->
@@ -31,7 +28,11 @@
 
         <div class="divider"></div>
 
-        <!-- Eligibility Result Card -->
+        {% set pct = (score / total_questions * 100) | round(1) %}
+        {% set gap = (70 - pct) | round(1) %}
+        {% set bar_width = pct if pct <= 100 else 100 %}
+
+        <!-- Eligibility Result Card (CSS class drives success/failure styling) -->
         <div class="eligibility-card {{ 'success' if is_eligible else 'failure' }}">
             {% if is_eligible %}
                 <span class="eligibility-icon">🏆</span>
@@ -39,29 +40,30 @@
                 <div class="score-stat">
                     ✅ {{ score }} / {{ total_questions }} &nbsp;·&nbsp; {{ pct }}%
                 </div>
-                <p>You've cleared the 70% threshold. Your personalized certificate is ready to download.</p>
+                <p>You've cleared the 70% threshold. Your certificate is ready to download.</p>
             {% else %}
                 <span class="eligibility-icon">📚</span>
                 <h2>Not Quite Yet!</h2>
                 <div class="score-stat">
                     ❌ {{ score }} / {{ total_questions }} &nbsp;·&nbsp; {{ pct }}%
                 </div>
-                <p>You need at least <strong style="color:var(--text)">70%</strong> to qualify. You're {{ (70 - pct)|round(1) }}% away — give it another shot!</p>
+                <p>You need at least <strong style="color:var(--text)">70%</strong> to qualify.
+                You're {{ gap }}% away — give it another shot!</p>
             {% endif %}
         </div>
 
-        <!-- Threshold Indicators -->
-        <div style="background: rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">YOUR SCORE</span>
-                <span style="font-size:0.8rem; font-weight:700; color:{{ 'var(--success)' if is_eligible else 'var(--error)' }}">{{ pct }}%</span>
+        <!-- Score Bar — width set via data attribute + JS to avoid CSS linting errors -->
+        <div class="score-bar-box">
+            <div class="score-bar-row">
+                <span class="score-bar-label">YOUR SCORE</span>
+                <span class="score-bar-pct {{ 'pct-success' if is_eligible else 'pct-failure' }}">{{ pct }}%</span>
             </div>
-            <div style="width:100%; height:8px; background:var(--border); border-radius:999px; overflow:hidden; position:relative;">
-                <div style="height:100%; width:{{ [pct, 100]|min }}%; background:{{ 'linear-gradient(90deg, var(--success), #34D399)' if is_eligible else 'linear-gradient(90deg, var(--error), #F87171)' }}; border-radius:999px; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);"></div>
+            <div class="score-bar-track">
+                <div class="score-bar-fill {{ 'bar-success' if is_eligible else 'bar-failure' }}"
+                     data-width="{{ bar_width }}">
+                </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:0.4rem; font-size:0.72rem; color:var(--text-dim);">
-                Passing threshold: 70%
-            </div>
+            <div class="score-bar-hint">Passing threshold: 70%</div>
         </div>
 
         <!-- Action Buttons -->
@@ -93,5 +95,11 @@
     </div>
 </div>
 
+<script>
+// Set bar width from data attribute — avoids Jinja2 in CSS property values
+document.querySelectorAll('.score-bar-fill[data-width]').forEach(function(el) {
+    el.style.width = el.dataset.width + '%';
+});
+</script>
 </body>
 </html>
