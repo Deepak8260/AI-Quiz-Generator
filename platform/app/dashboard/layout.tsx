@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Zap, BookOpen, Map, Trophy, BarChart3,
   Users, Settings, LogOut, ChevronRight, Flame
 } from "lucide-react";
+import { createClient } from "@/lib/supabase";
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -18,6 +20,41 @@ const NAV = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<{ name: string; email: string; initials: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name = (user.user_metadata?.full_name as string) || user.email?.split("@")[0] || "User";
+        const initials = name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+        setUser({ name, email: user.email ?? "", initials });
+      }
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  const pageTitle =
+    path === "/dashboard" ? "Dashboard" :
+    path.includes("generate") ? "Generate Quiz" :
+    path.includes("quizzes") ? "My Quizzes" :
+    path.includes("roadmap") ? "Study Roadmap" :
+    path.includes("certificates") ? "Certificates" :
+    path.includes("analytics") ? "Analytics" :
+    path.includes("leaderboard") ? "Leaderboard" :
+    path.includes("settings") ? "Settings" : "";
 
   return (
     <div className="flex min-h-screen bg-[#F7F8FC]">
@@ -37,7 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Flame className="w-4 h-4 text-[#F59E0B]" />
             <span className="text-xs font-bold text-[#92400E]">7-day streak! 🔥</span>
           </div>
-          <div className="text-xs text-[#B45309] mt-0.5">Keep it going — you're on fire!</div>
+          <div className="text-xs text-[#B45309] mt-0.5">Keep it going — you&apos;re on fire!</div>
         </div>
 
         {/* Nav links */}
@@ -73,14 +110,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="p-3 border-t border-[#F3F4F6]">
           <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#F9FAFB] transition-colors cursor-pointer">
             <div className="w-8 h-8 bg-[#6366F1] rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              D
+              {user?.initials ?? "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-[#111827] truncate">Deepak Kumar</div>
-              <div className="text-xs text-[#9CA3AF] truncate">deepak@example.com</div>
+              <div className="text-sm font-semibold text-[#111827] truncate">{user?.name ?? "Loading..."}</div>
+              <div className="text-xs text-[#9CA3AF] truncate">{user?.email ?? ""}</div>
             </div>
           </div>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#FEF2F2] rounded-xl transition-all mt-1">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#EF4444] hover:bg-[#FEF2F2] rounded-xl transition-all mt-1"
+          >
             <LogOut className="w-3.5 h-3.5" />
             Sign out
           </button>
@@ -92,17 +132,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Top bar */}
         <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-[#E5E7EB] px-8 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-[#111827]">
-              {path === "/dashboard" ? "Dashboard" :
-               path.includes("generate") ? "Generate Quiz" :
-               path.includes("quizzes") ? "My Quizzes" :
-               path.includes("roadmap") ? "Study Roadmap" :
-               path.includes("certificates") ? "Certificates" :
-               path.includes("analytics") ? "Analytics" :
-               path.includes("leaderboard") ? "Leaderboard" :
-               path.includes("settings") ? "Settings" : ""}
-            </h2>
-            <p className="text-xs text-[#9CA3AF] mt-0.5">Sunday, March 8, 2026</p>
+            <h2 className="text-lg font-bold text-[#111827]">{pageTitle}</h2>
+            <p className="text-xs text-[#9CA3AF] mt-0.5">
+              {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Link
