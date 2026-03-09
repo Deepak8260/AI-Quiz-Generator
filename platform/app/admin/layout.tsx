@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       const isAdmin =
         profile?.role === "super_admin" ||
-        // Fallback: allow the hardcoded super-admin email even if SQL hasn't been run
+        // Fallback: allow this email even before SQL is run
         user.email === "kd.codegeek@gmail.com";
 
       if (!isAdmin) {
