@@ -1,8 +1,10 @@
+"use client";
 import Link from "next/link";
 import {
   Zap, BookOpen, Trophy, BarChart3, Brain, ArrowRight,
   CheckCircle, Star, Users, Target, Sparkles, ChevronRight
 } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function LandingPage() {
   return (
@@ -23,10 +25,11 @@ export default function LandingPage() {
             <Link href="#pricing" className="hover:text-[#111827] transition-colors">Pricing</Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle variant="pill" />
             <Link
               href="/login"
-              className="text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors px-3 py-2"
+              className="text-sm font-medium text-[#6B7280] hover:text-[#111827] dark:text-[#94a3b8] dark:hover:text-[#f8fafc] transition-colors px-3 py-2"
             >
               Sign in
             </Link>

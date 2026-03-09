@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class", // toggled via .dark class on <html>
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -57,6 +58,7 @@ const config: Config = {
         "slide-in": "slideIn 0.3s ease both",
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
         shimmer: "shimmer 1.5s ease-in-out infinite",
+        "spin-once": "spinOnce 0.45s ease both",
       },
       keyframes: {
         fadeIn: {
@@ -78,6 +80,10 @@ const config: Config = {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        spinOnce: {
+          "0%": { transform: "rotate(-90deg) scale(0.7)", opacity: "0" },
+          "100%": { transform: "rotate(0deg) scale(1)", opacity: "1" },
         },
       },
     },

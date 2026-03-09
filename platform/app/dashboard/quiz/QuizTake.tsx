@@ -147,12 +147,14 @@ function CertificateView({
 }
 
 // ── Results Component ─────────────────────────────────────────────
-function QuizResults({ quiz, answers, timeTaken, onRetry, userName }: {
+function QuizResults({ quiz, answers, timeTaken, onRetry, userName, saving, saveError }: {
   quiz: GeneratedQuiz;
   answers: (number | null)[];
   timeTaken: number;
   onRetry: () => void;
   userName: string;
+  saving: boolean;
+  saveError: string | null;
 }) {
   const router = useRouter();
   const [showCert, setShowCert] = useState(false);
@@ -176,17 +178,44 @@ function QuizResults({ quiz, answers, timeTaken, onRetry, userName }: {
         />
       )}
 
-      {/* Score card */}
-      <div className={`rounded-3xl p-8 mb-6 text-center ${passed
-        ? "bg-gradient-to-br from-[#ECFDF5] to-[#D1FAE5] border border-[#6EE7B7]"
-        : "bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#FCD34D]"}`}>
+      {/* Saving indicator */}
+      {saving && (
+        <div className="flex items-center gap-2 text-xs text-[#6B7280] dark:text-[#94a3b8] bg-white dark:bg-[#1e293b] border border-[#E5E7EB] dark:border-[#334155] rounded-xl px-4 py-2.5 mb-4 shadow-sm">
+          <div className="w-3 h-3 border-2 border-[#6366F1]/30 border-t-[#6366F1] rounded-full animate-spin flex-shrink-0" />
+          Saving quiz result...
+        </div>
+      )}
+
+      {/* Save error banner */}
+      {saveError && (
+        <div className="flex items-start gap-3 bg-[#FEF2F2] dark:bg-[#1c0809] border border-[#FECACA] dark:border-[#7f1d1d] rounded-xl px-4 py-3 mb-4">
+          <span className="text-[#EF4444] text-lg flex-shrink-0">⚠️</span>
+          <div>
+            <p className="text-sm font-bold text-[#DC2626] dark:text-[#f87171]">Quiz not saved</p>
+            <p className="text-xs text-[#EF4444] dark:text-[#fca5a5] mt-0.5 font-mono">{saveError}</p>
+            <p className="text-xs text-[#6B7280] mt-1">
+              Go to <strong>Supabase → SQL Editor</strong> and run the migration SQL from My Quizzes page.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Score card — text pinned with inline styles so global dark overrides don't make text invisible on light-green bg */}
+      <div className={`rounded-3xl p-8 mb-6 text-center ${
+        passed
+          ? "bg-gradient-to-br from-[#ECFDF5] to-[#D1FAE5] border border-[#6EE7B7] dark:from-[#022c22] dark:to-[#064e3b] dark:border-[#065f46]"
+          : "bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#FCD34D] dark:from-[#1c1208] dark:to-[#292110] dark:border-[#92400e]"
+      }`}>
         <div className="text-6xl mb-3">{passed ? "🏆" : "💪"}</div>
-        <div className={`text-7xl font-black mb-2 ${passed ? "text-[#059669]" : "text-[#D97706]"}`}>{pct}%</div>
-        <div className="text-lg font-bold text-[#111827] mb-1">{correct} / {total} correct</div>
-        <div className="text-sm text-[#6B7280]">
+        <div className={`text-7xl font-black mb-2 ${passed ? "text-[#059669] dark:text-[#34d399]" : "text-[#D97706] dark:text-[#fbbf24]"}`}>{pct}%</div>
+        {/* Use style= to pin color, bypassing global dark-mode class overrides */}
+        <div className="text-lg font-bold mb-1" style={{ color: passed ? "#065f46" : "#78350f" }}>
+          {correct} / {total} correct
+        </div>
+        <div className="text-sm" style={{ color: passed ? "#047857" : "#92400e" }}>
           {passed ? "Great job! You've passed! 🎉" : "You need 70% to pass. Keep practicing!"}
         </div>
-        <div className="flex items-center justify-center gap-6 mt-4 text-sm text-[#6B7280]">
+        <div className="flex items-center justify-center gap-6 mt-4 text-sm" style={{ color: passed ? "#047857" : "#92400e" }}>
           <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {formatTime(timeTaken)}</span>
           <span className="flex items-center gap-1.5"><Brain className="w-4 h-4" /> {quiz.topic}</span>
           <span className="capitalize font-medium">{quiz.difficulty}</span>
@@ -195,8 +224,8 @@ function QuizResults({ quiz, answers, timeTaken, onRetry, userName }: {
         {/* Eligibility banner */}
         <div className={`mt-5 rounded-2xl px-5 py-3 flex items-center justify-center gap-3 text-sm font-semibold ${
           passed
-            ? "bg-[#059669]/10 text-[#059669] border border-[#6EE7B7]"
-            : "bg-[#D97706]/10 text-[#D97706] border border-[#FCD34D]"
+            ? "bg-[#059669]/10 text-[#059669] dark:text-[#34d399] border border-[#6EE7B7] dark:border-[#065f46]"
+            : "bg-[#D97706]/10 text-[#D97706] dark:text-[#fbbf24] border border-[#FCD34D] dark:border-[#92400e]"
         }`}>
           {passed
             ? <><Award className="w-5 h-5" /> Certificate eligible! You scored {pct}% ≥ 70%</>
@@ -300,6 +329,7 @@ export default function QuizTake({ quiz, onRetry }: { quiz: GeneratedQuiz; onRet
   const [startTime] = useState(Date.now());
   const [userName, setUserName] = useState("Learner");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Fetch user name from Supabase
   useEffect(() => {
@@ -340,34 +370,44 @@ export default function QuizTake({ quiz, onRetry }: { quiz: GeneratedQuiz; onRet
     setCurrentIndex(i => i + 1);
   }, []);
 
-  // Save quiz attempt to Supabase
+  // Save quiz attempt via server-side API (reliable session via cookies)
   const saveAttempt = async (finalAnswers: (number | null)[], finalTime: number) => {
     setSaving(true);
+    setSaveError(null);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const correct = finalAnswers.filter((a, i) => a === quiz.questions[i].correctIndex).length;
+      const correctCount = finalAnswers.filter((a, i) => a === quiz.questions[i].correctIndex).length;
       const total = quiz.questions.length;
-      const score = Math.round((correct / total) * 100);
+      const score = Math.round((correctCount / total) * 100);
       const passed = score >= 70;
 
-      await supabase.from("quiz_attempts").insert({
-        user_id: user.id,
-        topic: quiz.topic,
-        difficulty: quiz.difficulty,
-        question_type: quiz.questionType,
-        total_questions: total,
-        correct_answers: correct,
-        score_pct: score,
-        time_taken_secs: finalTime,
-        passed,
-        certificate_earned: passed,
-        created_at: new Date().toISOString(),
+      const res = await fetch("/api/quiz/save-attempt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: quiz.topic,
+          difficulty: quiz.difficulty,
+          question_type: quiz.questionType,
+          total_questions: total,
+          correct_answers: correctCount,
+          score_pct: score,
+          time_taken_secs: finalTime,
+          passed,
+          certificate_earned: passed,
+        }),
       });
+
+      const result = await res.json();
+      if (!res.ok) {
+        const msg = result.error || "Unknown error";
+        const hint = result.hint ? ` — ${result.hint}` : "";
+        console.error("Quiz save failed:", result);
+        setSaveError(`Save failed: ${msg}${hint}`);
+      } else {
+        console.log("Quiz saved:", result.data);
+      }
     } catch (err) {
-      console.error("Failed to save quiz attempt:", err);
+      console.error("saveAttempt fetch error:", err);
+      setSaveError(`Network error: ${String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -388,6 +428,8 @@ export default function QuizTake({ quiz, onRetry }: { quiz: GeneratedQuiz; onRet
         timeTaken={timeTaken}
         onRetry={onRetry}
         userName={userName}
+        saving={saving}
+        saveError={saveError}
       />
     );
   }

@@ -4,83 +4,296 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS Variables ── */
+/* ═══════════════════════════════════════════════════════════════
+   THEME VARIABLES
+   Light = :root   |   Dark = [data-theme="dark"] / .dark
+   ═══════════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #F7F8FC;
-  --card: #FFFFFF;
-  --primary: #6366F1;
-  --primary-hover: #4F46E5;
-  --primary-light: #EEF2FF;
-  --accent: #8B5CF6;
-  --accent-light: #F5F3FF;
-  --text: #111827;
-  --text-muted: #6B7280;
-  --text-dim: #9CA3AF;
-  --border: #E5E7EB;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --radius: 0.625rem;
+  /* Backgrounds */
+  --bg-primary:   #F7F8FC;
+  --bg-secondary: #ffffff;
+  --bg-tertiary:  #F3F4F6;
+  --bg-input:     #F9FAFB;
+
+  /* Text */
+  --text-primary:   #111827;
+  --text-secondary: #6B7280;
+  --text-muted:     #9CA3AF;
+
+  /* Borders */
+  --border-color: #E5E7EB;
+  --border-light: #F3F4F6;
+
+  /* Cards */
+  --card-bg:      #ffffff;
+  --card-border:  #E5E7EB;
+  --card-hover:   #FAFAFA;
+
+  /* Accent / brand */
+  --accent:         #6366F1;
+  --accent-hover:   #4F46E5;
+  --accent-light:   #EEF2FF;
+  --accent-2:       #8B5CF6;
+  --accent-2-light: #F5F3FF;
+
+  /* Status */
+  --success:    #10B981;
+  --success-bg: #ECFDF5;
+  --warning:    #F59E0B;
+  --warning-bg: #FEF3C7;
+  --danger:     #EF4444;
+  --danger-bg:  #FEF2F2;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #D1D5DB;
+  --scrollbar-hover: #9CA3AF;
 }
 
-/* ── Base Resets ── */
-* {
+/* ── Dark theme overrides ─────────────────────────────────────── */
+[data-theme="dark"],
+.dark {
+  --bg-primary:   #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary:  #1e293b;
+  --bg-input:     #0f172a;
+
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+
+  --border-color: #334155;
+  --border-light: #1e293b;
+
+  --card-bg:      #1e293b;
+  --card-border:  #334155;
+  --card-hover:   #263348;
+
+  --accent:         #6366F1;
+  --accent-hover:   #818cf8;
+  --accent-light:   #1e1b4b;
+  --accent-2:       #a78bfa;
+  --accent-2-light: #1e1035;
+
+  --success-bg: #022c22;
+  --warning-bg: #1c1208;
+  --danger-bg:  #1c0809;
+
+  --scrollbar-thumb: #334155;
+  --scrollbar-hover: #475569;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SMOOTH GLOBAL TRANSITIONS (skip animation-only props)
+   ═══════════════════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    fill 0.3s ease;
 }
 
+/* ── Exclude elements where transitions break animations ─────── */
+.animate-spin,
+.animate-ping,
+.animate-bounce,
+[class*="animate-"] {
+  transition: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE ELEMENTS (driven by CSS variables)
+   ═══════════════════════════════════════════════════════════════ */
 html {
   scroll-behavior: smooth;
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--background);
-  color: var(--text);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
 }
 
-/* ── Scrollbar ── */
+/* ── Scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
 
-/* ── Selection ── */
-::selection { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+/* ── Text selection ───────────────────────────────────────────── */
+::selection {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent);
+}
 
-/* ── Skeleton loader ── */
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE — GLOBAL ELEMENT OVERRIDES
+   These cover every hardcoded Tailwind hex colour used in the app
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Page backgrounds */
+.dark body,
+[data-theme="dark"] body { background-color: var(--bg-primary); }
+
+/* White surfaces → dark card */
+.dark .bg-white,
+[data-theme="dark"] .bg-white { background-color: var(--card-bg) !important; }
+
+/* Light grey backgrounds */
+.dark .bg-\[\#F7F8FC\],
+.dark .bg-\[\#F9FAFB\],
+.dark .bg-\[\#F3F4F6\],
+[data-theme="dark"] .bg-\[\#F7F8FC\],
+[data-theme="dark"] .bg-\[\#F9FAFB\],
+[data-theme="dark"] .bg-\[\#F3F4F6\] { background-color: var(--bg-primary) !important; }
+
+/* Hover light backgrounds */
+.dark .hover\:bg-\[\#FAFAFA\]:hover,
+.dark .hover\:bg-\[\#F9FAFB\]:hover,
+.dark .hover\:bg-\[\#F3F4F6\]:hover,
+[data-theme="dark"] .hover\:bg-\[\#FAFAFA\]:hover,
+[data-theme="dark"] .hover\:bg-\[\#F9FAFB\]:hover,
+[data-theme="dark"] .hover\:bg-\[\#F3F4F6\]:hover { background-color: var(--card-hover) !important; }
+
+/* Default text colours */
+.dark .text-\[\#111827\],
+[data-theme="dark"] .text-\[\#111827\] { color: var(--text-primary) !important; }
+
+.dark .text-\[\#374151\],
+[data-theme="dark"] .text-\[\#374151\] { color: var(--text-secondary) !important; }
+
+.dark .text-\[\#6B7280\],
+[data-theme="dark"] .text-\[\#6B7280\] { color: var(--text-secondary) !important; }
+
+.dark .text-\[\#9CA3AF\],
+[data-theme="dark"] .text-\[\#9CA3AF\] { color: var(--text-muted) !important; }
+
+/* Border colours */
+.dark .border-\[\#E5E7EB\],
+.dark .border-\[\#F3F4F6\],
+[data-theme="dark"] .border-\[\#E5E7EB\],
+[data-theme="dark"] .border-\[\#F3F4F6\] { border-color: var(--border-color) !important; }
+
+/* Divide (table separators etc.) */
+.dark .divide-\[\#F9FAFB\] > :not([hidden]) ~ :not([hidden]),
+[data-theme="dark"] .divide-\[\#F9FAFB\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-light) !important;
+}
+
+/* Input backgrounds */
+.dark input,
+.dark textarea,
+.dark select,
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder,
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Navbar / sticky bars (white + blur) */
+.dark .bg-white\/80,
+[data-theme="dark"] .bg-white\/80 {
+  background-color: rgba(15, 23, 42, 0.85) !important;
+}
+
+/* Accent light chip backgrounds */
+.dark .bg-\[\#EEF2FF\],
+[data-theme="dark"] .bg-\[\#EEF2FF\] { background-color: var(--accent-light) !important; }
+
+.dark .bg-\[\#F5F3FF\],
+[data-theme="dark"] .bg-\[\#F5F3FF\] { background-color: var(--accent-2-light) !important; }
+
+/* Purple explanation box */
+.dark .border-\[\#DDD6FE\],
+[data-theme="dark"] .border-\[\#DDD6FE\] { border-color: #3730a3 !important; }
+
+.dark .text-\[\#6D28D9\],
+[data-theme="dark"] .text-\[\#6D28D9\] { color: #a78bfa !important; }
+
+.dark .text-\[\#7C3AED\],
+[data-theme="dark"] .text-\[\#7C3AED\] { color: #c4b5fd !important; }
+
+/* Streak widget warm yellow */
+.dark .from-\[\#FEF3C7\],
+[data-theme="dark"] .from-\[\#FEF3C7\] { --tw-gradient-from: #1c1208 !important; }
+.dark .to-\[\#FDE68A\],
+[data-theme="dark"] .to-\[\#FDE68A\]   { --tw-gradient-to: #292110 !important; }
+
+/* Code blocks stay dark always — no override needed */
+
+/* ═══════════════════════════════════════════════════════════════
+   REUSABLE UTILITY CLASSES (use these in components)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Theme-aware card */
+.theme-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+}
+.theme-card:hover { background-color: var(--card-hover); }
+
+/* Theme-aware input */
+.theme-input {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+.theme-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.theme-input::placeholder { color: var(--text-muted); }
+
+/* ── Skeleton loader ──────────────────────────────────────────── */
 .skeleton {
-  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--border-color) 50%,
+    var(--bg-tertiary) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 0.5rem;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position:  200% 0; }
   100% { background-position: -200% 0; }
 }
 
-/* ── Prose-like content ── */
-.prose-quiz {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: var(--text);
-}
+/* ── Quiz option micro-interaction ───────────────────────────── */
+.quiz-option { transition: all 0.15s ease; }
+.quiz-option:hover { transform: translateX(3px); }
 
-/* ── Quiz option hover state ── */
-.quiz-option {
-  transition: all 0.15s ease;
-}
-.quiz-option:hover {
-  transform: translateX(3px);
-}
-
-/* ── Chart tooltip override ── */
-.recharts-tooltip-wrapper {
-  outline: none !important;
-}
+/* ── Chart tooltip ───────────────────────────────────────────── */
+.recharts-tooltip-wrapper { outline: none !important; }

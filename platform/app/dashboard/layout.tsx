@@ -7,6 +7,7 @@ import {
   Users, Settings, LogOut, ChevronRight, Flame
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -137,7 +138,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle variant="icon" />
             <Link
               href="/dashboard/generate"
               className="inline-flex items-center gap-1.5 bg-[#6366F1] hover:bg-[#4F46E5] text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-md"

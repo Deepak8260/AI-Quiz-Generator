@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/lib/ThemeContext";
 
 export const metadata: Metadata = {
   title: {
@@ -16,18 +17,38 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Inline script injected into <head> BEFORE React hydrates.
+ * Reads localStorage + OS preference and applies data-theme / .dark
+ * immediately — this prevents the flash of wrong theme on page load.
+ */
+const antiFlashScript = `
+(function () {
+  try {
+    var saved = localStorage.getItem('questly-theme');
+    var osDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = saved || (osDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Anti-flash: must run synchronously before paint */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script dangerouslySetInnerHTML={{ __html: antiFlashScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen bg-background antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
