@@ -1,12 +1,37 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   Zap, BookOpen, Trophy, BarChart3, Brain, ArrowRight,
-  CheckCircle, Star, Users, Target, Sparkles, ChevronRight
+  CheckCircle, Star, Users, Sparkles, ChevronRight, LayoutDashboard
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { createClient } from "@/lib/supabase";
 
 export default function LandingPage() {
+  const [authUser, setAuthUser] = useState<{ name: string; initials: string; email: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name =
+          (user.user_metadata?.full_name as string) ||
+          (user.user_metadata?.name as string) ||
+          user.email?.split("@")[0] ||
+          "User";
+        const initials = name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+        setAuthUser({ name, initials, email: user.email ?? "" });
+      }
+      setAuthChecked(true);
+    });
+  }, []);
   return (
     <div className="min-h-screen bg-[#F7F8FC]">
       {/* ── Navbar ─────────────────────────────────────────────── */}
@@ -27,19 +52,53 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-2.5">
             <ThemeToggle variant="pill" />
-            <Link
-              href="/login"
-              className="text-sm font-medium text-[#6B7280] hover:text-[#111827] dark:text-[#94a3b8] dark:hover:text-[#f8fafc] transition-colors px-3 py-2"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-semibold bg-[#6366F1] hover:bg-[#4F46E5] text-white px-4 py-2 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg inline-flex items-center gap-1.5"
-            >
-              Get started free
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+
+            {/* Show skeleton while auth check is in flight */}
+            {!authChecked && (
+              <div className="w-24 h-8 bg-[#F3F4F6] rounded-lg animate-pulse" />
+            )}
+
+            {/* ── Signed IN — show avatar + name + dashboard link ── */}
+            {authChecked && authUser && (
+              <div className="flex items-center gap-2.5">
+                {/* Avatar */}
+                <div className="flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-[#F3F4F6] dark:hover:bg-[#1e293b] transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {authUser.initials}
+                  </div>
+                  <span className="text-sm font-semibold text-[#111827] dark:text-[#f8fafc] hidden sm:block">
+                    {authUser.name}
+                  </span>
+                </div>
+                {/* Dashboard CTA */}
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-semibold bg-[#6366F1] hover:bg-[#4F46E5] text-white px-4 py-2 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg inline-flex items-center gap-1.5"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Dashboard
+                </Link>
+              </div>
+            )}
+
+            {/* ── Signed OUT — show Sign in + Get started ── */}
+            {authChecked && !authUser && (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-[#6B7280] hover:text-[#111827] dark:text-[#94a3b8] dark:hover:text-[#f8fafc] transition-colors px-3 py-2"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-sm font-semibold bg-[#6366F1] hover:bg-[#4F46E5] text-white px-4 py-2 rounded-lg transition-all hover:-translate-y-0.5 hover:shadow-lg inline-flex items-center gap-1.5"
+                >
+                  Get started free
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
