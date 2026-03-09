@@ -26,18 +26,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const supabase = createClient();
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        const name = (user.user_metadata?.full_name as string) || user.email?.split("@")[0] || "User";
-        const initials = name
-          .split(" ")
-          .map((n: string) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2);
-        setUser({ name, email: user.email ?? "", initials });
-      }
+      if (!user) return;
+      const name =
+        (user.user_metadata?.full_name as string) ||
+        (user.user_metadata?.name as string) ||
+        user.email?.split("@")[0] || "User";
+      const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+      setUser({ name, email: user.email ?? "", initials });
+
+      // ── 1. Realtime Presence — "Online Now" heartbeat ──────────────
+      // Subscribes this user to the shared presence channel.
+      // Admin can see everyone currently subscribed (= currently on dashboard).
+      // Automatically removed when browser tab closes.
+      presenceChannel = supabase.channel("questly-presence", {
+        config: { presence: { key: user.id } },
+      });
+      presenceChannel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await presenceChannel!.track({
+            user_id:   user.id,
+            name,
+            email:     user.email ?? "",
+            joined_at: new Date().toISOString(),
+          });
+        }
+      });
+
+      // ── 2. Profile upsert — safe, no last_seen_at yet ─────────────
+      supabase.from("profiles").upsert(
+        { id: user.id, full_name: name, email: user.email ?? "" },
+        { onConflict: "id" }
+      ).then(() => {
+        // Try updating last_seen_at separately (silently fails if column missing)
+        supabase.from("profiles")
+          .update({ last_seen_at: new Date().toISOString() } as Record<string, string>)
+          .eq("id", user.id)
+          .then(() => {/* silent */});
+      });
     });
+
+    return () => {
+      if (presenceChannel) supabase.removeChannel(presenceChannel);
+    };
   }, []);
 
   const handleSignOut = async () => {
