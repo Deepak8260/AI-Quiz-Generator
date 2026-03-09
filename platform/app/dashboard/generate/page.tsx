@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
-import { Zap, ChevronRight, Loader2, Brain, Sliders } from "lucide-react";
+import { Zap, ChevronRight, Loader2, Brain, AlertCircle } from "lucide-react";
+import type { GeneratedQuiz } from "@/app/api/quiz/generate/route";
+import QuizTake from "@/app/dashboard/quiz/QuizTake";
 
 const MODES = [
   { id: "standard", label: "Standard", desc: "Classic quiz format", icon: "📝" },
@@ -14,6 +16,11 @@ const QUESTION_TYPES = [
   { id: "mixed", label: "Mixed" },
 ];
 
+const SUGGESTIONS = [
+  "Python Basics", "Machine Learning", "SQL", "Linear Algebra", "World History", "React.js",
+  "Data Structures", "Calculus", "Biology", "JavaScript ES6",
+];
+
 export default function GenerateQuizPage() {
   const [form, setForm] = useState({
     topic: "",
@@ -21,17 +28,48 @@ export default function GenerateQuizPage() {
     numQuestions: 10,
     questionType: "mcq",
     aiMode: "standard",
-    timeLimit: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [quiz, setQuiz] = useState<GeneratedQuiz | null>(null);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // TODO: call /api/quiz/generate
-    await new Promise(r => setTimeout(r, 2500));
-    setLoading(false);
+
+    try {
+      const res = await fetch("/api/quiz/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || "Failed to generate quiz. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      setQuiz(data.quiz);
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Show quiz once generated
+  if (quiz) {
+    return (
+      <QuizTake
+        quiz={quiz}
+        onRetry={() => setQuiz(null)}
+      />
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in-up">
@@ -39,6 +77,13 @@ export default function GenerateQuizPage() {
         <h1 className="text-2xl font-black text-[#111827] mb-1">Generate a Quiz</h1>
         <p className="text-[#6B7280] text-sm">Enter any topic and let Gemini AI create your personalized quiz in seconds.</p>
       </div>
+
+      {error && (
+        <div className="flex items-start gap-2.5 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] text-sm px-4 py-3 rounded-xl mb-5">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <form onSubmit={handleGenerate} className="space-y-5">
 
@@ -78,7 +123,7 @@ export default function GenerateQuizPage() {
           />
           {/* Suggestions */}
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {["Python Basics", "Machine Learning", "SQL", "Linear Algebra", "World History", "React.js"].map(s => (
+            {SUGGESTIONS.map(s => (
               <button
                 key={s}
                 type="button"
@@ -126,13 +171,13 @@ export default function GenerateQuizPage() {
               <input
                 type="range"
                 min={5}
-                max={30}
+                max={20}
                 value={form.numQuestions}
                 onChange={e => setForm({ ...form, numQuestions: parseInt(e.target.value) })}
                 className="w-full accent-[#6366F1]"
               />
               <div className="flex justify-between text-xs text-[#9CA3AF] mt-1">
-                <span>5</span><span>30</span>
+                <span>5</span><span>20</span>
               </div>
             </div>
 
@@ -179,13 +224,13 @@ export default function GenerateQuizPage() {
         </button>
       </form>
 
-      {/* AI tips */}
+      {/* AI tip */}
       <div className="mt-6 bg-[#F5F3FF] rounded-2xl border border-[#DDD6FE] p-4 flex gap-3">
         <Brain className="w-4 h-4 text-[#8B5CF6] flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-xs font-bold text-[#6D28D9] mb-1">Gemini AI tip</p>
           <p className="text-xs text-[#7C3AED] leading-relaxed">
-            Be specific with your topic for better questions. Instead of "Python," try "Python list comprehensions and generators."
+            Be specific with your topic for better questions. Instead of &quot;Python,&quot; try &quot;Python list comprehensions and generators.&quot;
           </p>
         </div>
       </div>
