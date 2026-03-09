@@ -14,7 +14,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-sm font-bold">
               Q
             </div>
-            QuizAI
+            Questly
           </Link>
 
           <div className="hidden md:flex items-center gap-6 text-sm text-[#6B7280] font-medium">
@@ -51,7 +51,7 @@ export default function LandingPage() {
             {/* Badge */}
             <div className="inline-flex items-center gap-1.5 bg-[#EEF2FF] border border-[#C7D2FE] text-[#6366F1] text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
               <Sparkles className="w-3 h-3" />
-              Powered by Google Gemini AI
+              Powered by Advanced AI
             </div>
 
             <h1 className="text-5xl md:text-6xl font-black tracking-tight text-[#111827] leading-[1.1] mb-6">
@@ -333,7 +333,7 @@ export default function LandingPage() {
             Ready to learn smarter?
           </h2>
           <p className="text-[#6B7280] text-lg mb-10">
-            Join 10,000+ learners already using QuizAI to master new skills faster.
+            Join 10,000+ learners already using Questly to master new skills faster.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
@@ -361,14 +361,14 @@ export default function LandingPage() {
             <div className="w-7 h-7 bg-[#6366F1] rounded-lg flex items-center justify-center text-white text-xs font-bold">
               Q
             </div>
-            QuizAI
+            Questly
           </Link>
           <div className="flex gap-6 text-sm text-[#6B7280]">
             <Link href="#" className="hover:text-[#374151]">Privacy</Link>
             <Link href="#" className="hover:text-[#374151]">Terms</Link>
             <Link href="#" className="hover:text-[#374151]">Contact</Link>
           </div>
-          <p className="text-sm text-[#9CA3AF]">© 2026 QuizAI. All rights reserved.</p>
+          <p className="text-sm text-[#9CA3AF]">© 2026 Questly. All rights reserved.</p>
         </div>
       </footer>
     </div>
@@ -377,7 +377,7 @@ export default function LandingPage() {
 
 // ── Data ────────────────────────────────────────────────────────
 const FEATURES = [
-  { icon: Zap, color: "#6366F1", title: "Instant AI Quiz Generation", desc: "Generate quizzes on any topic in seconds using Google Gemini AI. MCQ, True/False, or mixed formats." },
+  { icon: Zap, color: "#6366F1", title: "Instant AI Quiz Generation", desc: "Generate quizzes on any topic in seconds using advanced AI. MCQ, True/False, or mixed formats." },
   { icon: Brain, color: "#8B5CF6", title: "AI Learning Assistant", desc: "Get instant explanations for wrong answers. Your personal AI tutor explains concepts clearly." },
   { icon: BarChart3, color: "#10B981", title: "Learning Analytics", desc: "Track your progress over time. See your strong and weak topics with visual charts." },
   { icon: BookOpen, color: "#F59E0B", title: "Study Roadmap", desc: "AI generates personalized week-by-week study plans tailored to your learning goal." },
@@ -387,7 +387,7 @@ const FEATURES = [
 
 const STEPS = [
   { emoji: "🎯", title: "Enter your topic", desc: "Type any topic — Python, History, Math, Machine Learning. AI handles the rest." },
-  { emoji: "⚡", title: "AI generates your quiz", desc: "Gemini AI creates personalized questions in seconds based on your chosen difficulty." },
+  { emoji: "⚡", title: "AI generates your quiz", desc: "Our AI creates personalized questions in seconds based on your chosen difficulty." },
   { emoji: "🏆", title: "Take quiz & improve", desc: "Answer questions, get AI explanations, earn certificates, and track your progress." },
 ];
 
@@ -399,9 +399,9 @@ const STATS = [
 ];
 
 const TESTIMONIALS = [
-  { text: "QuizAI completely changed how I study. I went from struggling to passing my Python certification in just 3 weeks.", name: "Ananya R.", role: "Software Developer", color: "#6366F1" },
+  { text: "Questly completely changed how I study. I went from struggling to passing my Python certification in just 3 weeks.", name: "Ananya R.", role: "Software Developer", color: "#6366F1" },
   { text: "The AI explanations are incredible. It doesn't just tell you the answer — it teaches you WHY. Game changer.", name: "Marcus T.", role: "Data Analyst", color: "#8B5CF6" },
-  { text: "I use QuizAI every day during my commute. The streak system keeps me motivated. Already earned 5 certificates!", name: "Priya M.", role: "Student", color: "#10B981" },
+  { text: "I use Questly every day during my commute. The streak system keeps me motivated. Already earned 5 certificates!", name: "Priya M.", role: "Student", color: "#10B981" },
 ];
 
 const FREE_FEATURES = [
@@ -418,6 +418,6 @@ const PRO_FEATURES = [
   "Full analytics dashboard",
   "Unlimited certificates",
   "Study roadmaps",
-  "Priority Gemini AI",
+  "Priority AI Access",
   "Export results",
 ];

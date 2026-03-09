@@ -64,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-5 pt-5 pb-4 border-b border-[#F3F4F6]">
           <Link href="/" className="flex items-center gap-2.5 font-bold text-[#111827] text-base">
             <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center text-white font-black text-sm">Q</div>
-            QuizAI
+            Questly
           </Link>
         </div>
 

@@ -52,7 +52,7 @@ function CertificateView({
     win.document.write(`
       <html>
         <head>
-          <title>QuizAI Certificate – ${topic}</title>
+          <title>Questly Certificate – ${topic}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Georgia, serif; background: #fff; }
@@ -73,7 +73,7 @@ function CertificateView({
         <body>
           <div class="cert">
             <div class="badge">🏆</div>
-            <div class="issuer">QuizAI — Powered by Google Gemini AI</div>
+            <div class="issuer">Questly — AI-Powered Learning Platform</div>
             <div class="title">Certificate of Achievement</div>
             <div class="sub">This certifies that</div>
             <div class="name">${userName}</div>
@@ -85,7 +85,7 @@ function CertificateView({
             <div class="footer">
               <span>📅 Issued: ${date}</span>
               <span>✅ Passing criteria: ≥ 70%</span>
-              <span>🎓 Verified by QuizAI</span>
+              <span>🎓 Verified by Questly</span>
             </div>
             <div class="cert-id">Certificate ID: QUIZAI-${Date.now().toString(36).toUpperCase()}</div>
           </div>
@@ -106,7 +106,7 @@ function CertificateView({
         >
           <div className="text-5xl mb-3">🏆</div>
           <div className="text-xs font-black text-[#6366F1] tracking-[4px] uppercase mb-4">
-            QuizAI · Powered by Google Gemini AI
+            Questly · AI-Powered Learning Platform
           </div>
           <h2 className="text-3xl font-black text-[#111827] mb-1">Certificate of Achievement</h2>
           <p className="text-[#6B7280] mb-5">This certifies that</p>
@@ -122,7 +122,7 @@ function CertificateView({
           <div className="flex items-center justify-between text-xs text-[#9CA3AF] border-t border-[#E5E7EB] pt-4 mt-2">
             <span>📅 {date}</span>
             <span>✅ Passing: ≥70%</span>
-            <span>🎓 Verified by QuizAI</span>
+            <span>🎓 Verified by Questly</span>
           </div>
         </div>
 

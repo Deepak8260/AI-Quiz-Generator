@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
+      return NextResponse.json({ error: "AI service not configured" }, { status: 500 });
     }
 
     // Build prompt based on questionType
@@ -119,7 +119,7 @@ ${isCodeTopic ? `- For programming/code questions: put the code snippet in the "
     if (!geminiData) {
       console.error("All Gemini models failed. Last error:", lastError);
       return NextResponse.json(
-        { error: `Gemini API failed: ${lastError.slice(0, 200)}` },
+        { error: `AI generation failed. Please try again.` },
         { status: 502 }
       );
     }

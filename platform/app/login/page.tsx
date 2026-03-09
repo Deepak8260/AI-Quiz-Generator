@@ -41,7 +41,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 font-bold text-[#111827] text-xl mb-7">
             <div className="w-9 h-9 bg-[#6366F1] rounded-xl flex items-center justify-center text-white font-black text-lg">Q</div>
-            QuizAI
+            Questly
           </Link>
           <h1 className="text-3xl font-black text-[#111827] mb-2">Welcome back</h1>
           <p className="text-[#6B7280]">Sign in to continue your learning journey</p>

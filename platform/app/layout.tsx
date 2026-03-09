@@ -3,14 +3,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "QuizAI — AI-Powered Learning Platform",
-    template: "%s | QuizAI",
+    default: "Questly — AI-Powered Learning Platform",
+    template: "%s | Questly",
   },
   description:
     "Learn faster with AI-generated quizzes. Generate personalized quizzes on any topic, track your progress, and earn certificates.",
   keywords: ["AI quiz", "learning platform", "AI tutor", "study", "certificates"],
   openGraph: {
-    title: "QuizAI — AI-Powered Learning Platform",
+    title: "Questly — AI-Powered Learning Platform",
     description: "Learn faster with AI-generated quizzes and personalized study plans.",
     type: "website",
   },

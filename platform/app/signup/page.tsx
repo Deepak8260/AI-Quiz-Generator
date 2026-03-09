@@ -61,7 +61,7 @@ export default function SignupPage() {
       <div className="hidden lg:flex flex-col w-1/2 bg-[#6366F1] p-12 justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
           <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white font-black text-lg">Q</div>
-          QuizAI
+          Questly
         </Link>
 
         <div className="max-w-md">
@@ -69,7 +69,7 @@ export default function SignupPage() {
             Your AI-powered learning journey starts here.
           </h2>
           <p className="text-indigo-200 text-lg mb-8">
-            Generate quizzes, track progress, earn certificates — all powered by Google Gemini AI.
+            Generate quizzes, track progress, and earn certificates — all powered by advanced AI.
           </p>
 
           <div className="space-y-4">
@@ -93,7 +93,7 @@ export default function SignupPage() {
               <div key={i} className="w-8 h-8 rounded-full border-2 border-[#6366F1]" style={{ backgroundColor: c }} />
             ))}
           </div>
-          Join 10,000+ learners already on QuizAI
+          Join 10,000+ learners already on Questly
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export default function SignupPage() {
           <div className="text-center mb-8">
             <Link href="/" className="lg:hidden inline-flex items-center gap-2 font-bold text-[#111827] text-xl mb-6">
               <div className="w-8 h-8 bg-[#6366F1] rounded-lg flex items-center justify-center text-white font-black">Q</div>
-              QuizAI
+              Questly
             </Link>
             <h1 className="text-3xl font-black text-[#111827] mb-2">Create your account</h1>
             <p className="text-[#6B7280]">Start learning for free. No credit card needed.</p>

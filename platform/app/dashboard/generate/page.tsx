@@ -75,7 +75,7 @@ export default function GenerateQuizPage() {
     <div className="max-w-2xl mx-auto animate-fade-in-up">
       <div className="mb-7">
         <h1 className="text-2xl font-black text-[#111827] mb-1">Generate a Quiz</h1>
-        <p className="text-[#6B7280] text-sm">Enter any topic and let Gemini AI create your personalized quiz in seconds.</p>
+        <p className="text-[#6B7280] text-sm">Enter any topic and let our AI create your personalized quiz in seconds.</p>
       </div>
 
       {error && (
@@ -212,7 +212,7 @@ export default function GenerateQuizPage() {
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Generating your quiz with Gemini AI...
+              Generating your quiz with AI...
             </>
           ) : (
             <>
@@ -228,7 +228,7 @@ export default function GenerateQuizPage() {
       <div className="mt-6 bg-[#F5F3FF] rounded-2xl border border-[#DDD6FE] p-4 flex gap-3">
         <Brain className="w-4 h-4 text-[#8B5CF6] flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-[#6D28D9] mb-1">Gemini AI tip</p>
+          <p className="text-xs font-bold text-[#6D28D9] mb-1">AI tip</p>
           <p className="text-xs text-[#7C3AED] leading-relaxed">
             Be specific with your topic for better questions. Instead of &quot;Python,&quot; try &quot;Python list comprehensions and generators.&quot;
           </p>
