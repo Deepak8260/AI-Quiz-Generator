@@ -1,17 +1,19 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import {
-  Search, Filter, Trash2, Shield, UserX, RefreshCw,
-  ChevronDown, Loader2, CheckCircle, XCircle, ChevronLeft, ChevronRight as ChevronRight2
+  Search, Filter, Trash2, Shield, RefreshCw,
+  ChevronDown, Loader2, CheckCircle, XCircle,
+  ChevronLeft, ChevronRight as ChevronRight2, Eye, Trophy
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
-interface Profile {
+interface UserRow {
   id: string;
-  full_name: string | null;
-  email: string | null;
+  full_name: string;
+  email: string;
   role: string;
-  created_at: string;
+  created_at: string | null;
   quizCount: number;
   certCount: number;
   avgScore: number;
@@ -29,7 +31,7 @@ function relTime(iso: string | null) {
 }
 
 export default function AdminUsers() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [users,    setUsers]    = useState<UserRow[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -40,39 +42,64 @@ export default function AdminUsers() {
     setLoading(true);
     const supabase = createClient();
 
-    const [profilesRes, attemptsRes] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      supabase.from("questly_quiz_attempts").select("user_id, score_pct, certificate_earned, created_at"),
-    ]);
+    // Get ALL quiz attempts (gives us unique user IDs + stats)
+    const { data: attempts } = await supabase
+      .from("questly_quiz_attempts")
+      .select("user_id, score_pct, certificate_earned, created_at");
 
-    const attempts = attemptsRes.data ?? [];
-    const attemptsByUser: Record<string, { count: number; certs: number; totalScore: number; last: string }> = {};
-    attempts.forEach(a => {
-      if (!attemptsByUser[a.user_id]) {
-        attemptsByUser[a.user_id] = { count: 0, certs: 0, totalScore: 0, last: a.created_at };
-      }
-      attemptsByUser[a.user_id].count++;
-      if (a.certificate_earned) attemptsByUser[a.user_id].certs++;
-      attemptsByUser[a.user_id].totalScore += a.score_pct;
-      if (a.created_at > attemptsByUser[a.user_id].last) attemptsByUser[a.user_id].last = a.created_at;
-    });
+    // Get profiles (might be empty for some users)
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, created_at");
 
-    const merged: Profile[] = (profilesRes.data ?? []).map(p => {
-      const ua = attemptsByUser[p.id];
-      return {
-        id: p.id,
+    // Build profile lookup
+    const profileMap: Record<string, { full_name: string | null; email: string | null; role: string; created_at: string | null }> = {};
+    (profiles ?? []).forEach(p => {
+      profileMap[p.id] = {
         full_name: p.full_name,
         email: p.email,
         role: p.role ?? "user",
         created_at: p.created_at,
-        quizCount:  ua?.count ?? 0,
-        certCount:  ua?.certs ?? 0,
-        avgScore:   ua ? Math.round(ua.totalScore / ua.count) : 0,
-        lastActive: ua?.last ?? null,
       };
     });
 
-    setProfiles(merged);
+    // Aggregate stats by user_id from attempts
+    const statsMap: Record<string, { count: number; certs: number; totalScore: number; last: string }> = {};
+    (attempts ?? []).forEach(a => {
+      if (!statsMap[a.user_id]) {
+        statsMap[a.user_id] = { count: 0, certs: 0, totalScore: 0, last: a.created_at };
+      }
+      statsMap[a.user_id].count++;
+      if (a.certificate_earned) statsMap[a.user_id].certs++;
+      statsMap[a.user_id].totalScore += a.score_pct;
+      if (a.created_at > statsMap[a.user_id].last) statsMap[a.user_id].last = a.created_at;
+    });
+
+    // Also include users from profiles who may not have attempts yet
+    const allUserIds = new Set([
+      ...Object.keys(statsMap),
+      ...Object.keys(profileMap),
+    ]);
+
+    const merged: UserRow[] = Array.from(allUserIds).map(uid => {
+      const prof = profileMap[uid];
+      const stat = statsMap[uid];
+      return {
+        id:         uid,
+        full_name:  prof?.full_name  ?? "—",
+        email:      prof?.email      ?? `User …${uid.slice(-8)}`,
+        role:       prof?.role       ?? "user",
+        created_at: prof?.created_at ?? null,
+        quizCount:  stat?.count      ?? 0,
+        certCount:  stat?.certs      ?? 0,
+        avgScore:   stat ? Math.round(stat.totalScore / stat.count) : 0,
+        lastActive: stat?.last       ?? null,
+      };
+    })
+    // Sort by most quiz activity first
+    .sort((a, b) => b.quizCount - a.quizCount);
+
+    setUsers(merged);
     setLoading(false);
   };
 
@@ -83,45 +110,48 @@ export default function AdminUsers() {
     setTimeout(() => setMsg(null), 3000);
   };
 
-  // Promote / demote role
-  const toggleRole = async (profile: Profile) => {
-    const newRole = profile.role === "super_admin" ? "user" : "super_admin";
+  const toggleRole = async (u: UserRow) => {
+    const newRole = u.role === "super_admin" ? "user" : "super_admin";
     const supabase = createClient();
-    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", profile.id);
+    // Upsert profile with new role
+    const { error } = await supabase.from("profiles").upsert({
+      id: u.id, email: u.email !== `User …${u.id.slice(-8)}` ? u.email : undefined,
+      full_name: u.full_name !== "—" ? u.full_name : undefined,
+      role: newRole,
+    }, { onConflict: "id" });
     if (error) { showMsg(error.message, false); return; }
-    setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, role: newRole } : p));
-    showMsg(`${profile.full_name ?? "User"} is now ${newRole}`, true);
+    setUsers(prev => prev.map(p => p.id === u.id ? { ...p, role: newRole } : p));
+    showMsg(`${u.full_name !== "—" ? u.full_name : u.email} is now ${newRole}`, true);
   };
 
-  // Delete user data
-  const deleteUserData = async (profile: Profile) => {
-    if (!confirm(`Delete all data for ${profile.full_name ?? profile.email}? This cannot be undone.`)) return;
+  const deleteUserData = async (u: UserRow) => {
+    if (!confirm(`Delete ALL data for ${u.full_name !== "—" ? u.full_name : u.email}? Cannot be undone.`)) return;
     const supabase = createClient();
-    await supabase.from("questly_quiz_attempts").delete().eq("user_id", profile.id);
-    await supabase.from("profiles").delete().eq("id", profile.id);
-    setProfiles(prev => prev.filter(p => p.id !== profile.id));
+    await supabase.from("questly_quiz_attempts").delete().eq("user_id", u.id);
+    await supabase.from("profiles").delete().eq("id", u.id);
+    setUsers(prev => prev.filter(p => p.id !== u.id));
     showMsg("User data deleted.", true);
   };
 
   const filtered = useMemo(() => {
-    let list = profiles;
-    if (search.trim()) list = list.filter(p =>
-      (p.full_name?.toLowerCase().includes(search.toLowerCase())) ||
-      (p.email?.toLowerCase().includes(search.toLowerCase()))
+    let list = users;
+    if (search.trim()) list = list.filter(u =>
+      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase())
     );
-    if (roleFilter !== "all") list = list.filter(p => p.role === roleFilter);
+    if (roleFilter !== "all") list = list.filter(u => u.role === roleFilter);
     return list;
-  }, [profiles, search, roleFilter]);
+  }, [users, search, roleFilter]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paged = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
 
   return (
     <div className="animate-fade-in-up">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-white mb-1">User Management</h1>
-          <p className="text-sm text-[#64748B]">{profiles.length} registered users</p>
+          <p className="text-sm text-[#64748B]">{users.length} users tracked</p>
         </div>
         <button onClick={load} className="flex items-center gap-2 text-sm text-[#94a3b8] bg-[#1E293B] border border-[#334155] px-4 py-2 rounded-xl hover:border-[#6366F1] transition-all">
           <RefreshCw className="w-4 h-4" /> Refresh
@@ -158,47 +188,56 @@ export default function AdminUsers() {
 
       {/* Table */}
       <div className="bg-[#0F172A] rounded-2xl border border-[#1E293B] overflow-hidden">
-        {/* Header */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-[#1E293B] text-[9px] font-black text-[#475569] uppercase tracking-widest">
           <div>User</div><div>Role</div><div>Quizzes</div><div>Certs</div><div>Avg Score</div><div>Last Active</div><div>Actions</div>
         </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-16 text-[#475569]">
             <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading users…
           </div>
         ) : paged.length === 0 ? (
-          <div className="py-12 text-center text-[#475569] text-sm">No users found</div>
+          <div className="py-12 text-center text-sm text-[#475569]">
+            {users.length === 0
+              ? "No users found — run a quiz attempt to see users here."
+              : "No results match your search."}
+          </div>
         ) : (
           <div className="divide-y divide-[#1E293B]">
-            {paged.map(p => (
-              <div key={p.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3.5 items-center hover:bg-[#1E293B]/40 transition-colors">
+            {paged.map(u => (
+              <div key={u.id} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3.5 items-center hover:bg-[#1E293B]/40 transition-colors">
                 {/* User */}
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-white truncate">{p.full_name ?? "—"}</div>
-                  <div className="text-xs text-[#475569] truncate">{p.email ?? p.id.slice(0,12) + "…"}</div>
+                  <div className="text-sm font-semibold text-white truncate">{u.full_name !== "—" ? u.full_name : <span className="text-[#475569] italic">No name</span>}</div>
+                  <div className="text-xs text-[#475569] truncate">{u.email}</div>
                 </div>
                 {/* Role */}
                 <div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.role === "super_admin" ? "bg-[#EF4444]/15 text-[#EF4444]" : "bg-[#1E293B] text-[#64748B]"}`}>
-                    {p.role === "super_admin" ? "Admin" : "User"}
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${u.role === "super_admin" ? "bg-[#EF4444]/15 text-[#EF4444]" : "bg-[#1E293B] text-[#64748B]"}`}>
+                    {u.role === "super_admin" ? "Admin" : "User"}
                   </span>
                 </div>
                 {/* Stats */}
-                <div className="text-sm font-bold text-[#94a3b8]">{p.quizCount}</div>
-                <div className="text-sm font-bold text-[#F59E0B]">{p.certCount}</div>
-                <div className={`text-sm font-bold ${p.avgScore >= 70 ? "text-[#10B981]" : p.avgScore > 0 ? "text-[#F59E0B]" : "text-[#475569]"}`}>
-                  {p.avgScore > 0 ? `${p.avgScore}%` : "—"}
+                <div className="text-sm font-bold text-[#94a3b8]">{u.quizCount}</div>
+                <div className="text-sm font-bold text-[#F59E0B] flex items-center gap-1">
+                  {u.certCount > 0 && <Trophy className="w-3 h-3" />}{u.certCount}
                 </div>
-                <div className="text-xs text-[#475569]">{relTime(p.lastActive)}</div>
+                <div className={`text-sm font-bold ${u.avgScore >= 70 ? "text-[#10B981]" : u.avgScore > 0 ? "text-[#F59E0B]" : "text-[#475569]"}`}>
+                  {u.avgScore > 0 ? `${u.avgScore}%` : "—"}
+                </div>
+                <div className="text-xs text-[#475569]">{relTime(u.lastActive)}</div>
                 {/* Actions */}
                 <div className="flex items-center gap-1">
-                  <button title={p.role === "super_admin" ? "Demote" : "Promote to Admin"}
-                    onClick={() => toggleRole(p)}
-                    className={`p-1.5 rounded-lg transition-colors ${p.role === "super_admin" ? "text-[#EF4444] hover:bg-[#EF4444]/10" : "text-[#6366F1] hover:bg-[#6366F1]/10"}`}>
+                  <Link href={`/admin/users/${u.id}`} title="View full quiz history"
+                    className="p-1.5 rounded-lg text-[#475569] hover:text-[#6366F1] hover:bg-[#6366F1]/10 transition-colors">
+                    <Eye className="w-3.5 h-3.5" />
+                  </Link>
+                  <button title={u.role === "super_admin" ? "Demote to user" : "Promote to admin"}
+                    onClick={() => toggleRole(u)}
+                    className={`p-1.5 rounded-lg transition-colors ${u.role === "super_admin" ? "text-[#EF4444] hover:bg-[#EF4444]/10" : "text-[#6366F1] hover:bg-[#6366F1]/10"}`}>
                     <Shield className="w-3.5 h-3.5" />
                   </button>
-                  <button title="Delete user data"
-                    onClick={() => deleteUserData(p)}
+                  <button title="Delete user data" onClick={() => deleteUserData(u)}
                     className="p-1.5 rounded-lg text-[#475569] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -208,7 +247,6 @@ export default function AdminUsers() {
           </div>
         )}
 
-        {/* Pagination */}
         {pages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-[#1E293B] text-xs text-[#475569]">
             <span>Page {page} of {pages} · {filtered.length} users</span>

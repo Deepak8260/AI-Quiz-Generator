@@ -393,6 +393,16 @@ export default function QuizTake({ quiz, onRetry }: { quiz: GeneratedQuiz; onRet
           time_taken_secs: finalTime,
           passed,
           certificate_earned: passed,
+          // Full question + answer breakdown for admin tracking
+          questions_data: quiz.questions.map((q, i) => ({
+            id: q.id,
+            question: q.question,
+            options: q.options,
+            correctIndex: q.correctIndex,
+            userAnswerIndex: finalAnswers[i],
+            isCorrect: finalAnswers[i] === q.correctIndex,
+            explanation: q.explanation ?? null,
+          })),
         }),
       });
 

@@ -33,9 +33,34 @@ export async function POST(req: NextRequest) {
       topic, difficulty, question_type,
       total_questions, correct_answers,
       score_pct, time_taken_secs, passed, certificate_earned,
+      questions_data,
     } = body;
 
-    // Insert into our clean table — schema is 100% known, no legacy issues
+    // ── Auto-upsert profile so admin can see this user ──────────────
+    // This runs silently — failure won't block the quiz save
+    const fullName =
+      (user.user_metadata?.full_name as string) ||
+      (user.user_metadata?.name as string) ||
+      user.email?.split("@")[0] ||
+      "Unknown";
+
+    await supabase.from("profiles").upsert(
+      {
+        id:        user.id,
+        full_name: fullName,
+        email:     user.email ?? "",
+        // Preserve existing role — never overwrite with 'user' if already admin
+      },
+      {
+        onConflict: "id",
+        ignoreDuplicates: false,
+      }
+    ).select("role").single().then(({ data: existingProfile }) => {
+      // Only set role if profile is brand new (no existing role)
+      // The upsert above doesn't touch role column — safe
+    });
+
+    // ── Insert quiz attempt ─────────────────────────────────────────
     const { data, error } = await supabase
       .from("questly_quiz_attempts")
       .insert({
@@ -49,6 +74,7 @@ export async function POST(req: NextRequest) {
         time_taken_secs:    time_taken_secs   ?? 0,
         passed:             passed            ?? false,
         certificate_earned: certificate_earned ?? false,
+        questions_data:     questions_data    ?? null,
       })
       .select()
       .single();

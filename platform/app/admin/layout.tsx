@@ -33,25 +33,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace("/login"); return; }
 
-      // Check role in profiles table
-      const { data: profile } = await supabase
+      // --- Primary check: profiles table ---
+      const { data: profile, error: profileErr } = await supabase
         .from("profiles")
-        .select("role, full_name")
+        .select("role, full_name, email")
         .eq("id", user.id)
         .single();
 
-      if (profile?.role !== "super_admin") {
+      const isAdmin =
+        profile?.role === "super_admin" ||
+        // Fallback: allow the hardcoded super-admin email even if SQL hasn't been run
+        user.email === "kd.codegeek@gmail.com";
+
+      if (!isAdmin) {
         setDenied(true);
         setTimeout(() => router.replace("/dashboard"), 2500);
         return;
       }
 
-      const name = profile?.full_name || user.email?.split("@")[0] || "Admin";
+      const name =
+        profile?.full_name ||
+        (user.user_metadata?.full_name as string) ||
+        user.email?.split("@")[0] ||
+        "Admin";
       setAdminUser({ name, email: user.email ?? "" });
       setChecking(false);
     };
     checkRole();
   }, [router]);
+
 
   const signOut = async () => {
     const supabase = createClient();
