@@ -97,7 +97,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0B1120]">
+    <div className="flex min-h-screen bg-[#0B1120] overflow-x-hidden">
 
       {/* ── SIDEBAR ─── always dark */}
       <aside className="w-64 fixed left-0 top-0 h-full bg-[#0F172A] border-r border-[#1E293B] flex flex-col z-30">
@@ -167,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* ── MAIN ── */}
-      <main className="flex-1 ml-64">
+      <main className="flex-1 ml-64 min-w-0 overflow-x-hidden">
         {/* Topbar */}
         <div className="sticky top-0 z-20 bg-[#0B1120]/90 backdrop-blur-md border-b border-[#1E293B] px-8 py-4 flex items-center justify-between">
           <div>
