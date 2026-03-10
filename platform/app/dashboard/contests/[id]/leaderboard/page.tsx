@@ -88,7 +88,7 @@ function Podium({ results }: { results: ContestResult[] }) {
                         <div
                             className="rounded-t-xl w-full mx-auto flex items-end justify-center pb-1 shadow-sm"
                             style={{
-                                height: `${[heights[height] ?? 12] * 4}px`,
+                                height: `${(heights[height] ?? 12) * 4}px`,
                                 backgroundColor: mc.bg,
                                 border: `1px solid ${mc.border}`,
                             }}
