@@ -56,6 +56,7 @@ const config: Config = {
         "fade-in": "fadeIn 0.4s ease both",
         "fade-in-up": "fadeInUp 0.4s ease both",
         "slide-in": "slideIn 0.3s ease both",
+        "slide-in-right": "slideInRight 0.3s ease both",
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
         shimmer: "shimmer 1.5s ease-in-out infinite",
         "spin-once": "spinOnce 0.45s ease both",
@@ -71,6 +72,10 @@ const config: Config = {
         },
         slideIn: {
           "0%": { opacity: "0", transform: "translateX(-12px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        slideInRight: {
+          "0%": { opacity: "0", transform: "translateX(100%)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
         pulseSoft: {

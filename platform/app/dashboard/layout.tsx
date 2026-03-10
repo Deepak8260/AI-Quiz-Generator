@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Zap, BookOpen, Map, Trophy, BarChart3,
-  Users, Settings, LogOut, ChevronRight, Flame
+  Users, Settings, LogOut, ChevronRight, Flame, Swords
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/generate", icon: Zap, label: "Generate Quiz" },
   { href: "/dashboard/quizzes", icon: BookOpen, label: "My Quizzes" },
+  { href: "/dashboard/contests", icon: Swords, label: "Live Contests", badge: "LIVE" },
   { href: "/dashboard/roadmap", icon: Map, label: "Study Roadmap" },
   { href: "/dashboard/certificates", icon: Trophy, label: "Certificates" },
   { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
@@ -47,9 +48,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       presenceChannel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           await presenceChannel!.track({
-            user_id:   user.id,
+            user_id: user.id,
             name,
-            email:     user.email ?? "",
+            email: user.email ?? "",
             joined_at: new Date().toISOString(),
           });
         }
@@ -64,7 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         supabase.from("profiles")
           .update({ last_seen_at: new Date().toISOString() } as Record<string, string>)
           .eq("id", user.id)
-          .then(() => {/* silent */});
+          .then(() => {/* silent */ });
       });
     });
 
@@ -82,13 +83,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const pageTitle =
     path === "/dashboard" ? "Dashboard" :
-    path.includes("generate") ? "Generate Quiz" :
-    path.includes("quizzes") ? "My Quizzes" :
-    path.includes("roadmap") ? "Study Roadmap" :
-    path.includes("certificates") ? "Certificates" :
-    path.includes("analytics") ? "Analytics" :
-    path.includes("leaderboard") ? "Leaderboard" :
-    path.includes("settings") ? "Settings" : "";
+      path.includes("generate") ? "Generate Quiz" :
+        path.includes("quizzes") ? "My Quizzes" :
+          path.includes("contests") ? "Live Contests" :
+            path.includes("roadmap") ? "Study Roadmap" :
+              path.includes("certificates") ? "Certificates" :
+                path.includes("analytics") ? "Analytics" :
+                  path.includes("leaderboard") ? "Leaderboard" :
+                    path.includes("settings") ? "Settings" : "";
 
   return (
     <div className="flex min-h-screen bg-[#F7F8FC]">
@@ -116,18 +118,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="text-[9px] font-black text-[#9CA3AF] tracking-widest uppercase px-3 mb-2 mt-1">Main</div>
           {NAV.map((item) => {
             const active = path === item.href || (item.href !== "/dashboard" && path.startsWith(item.href));
+            const navItem = item as typeof item & { badge?: string };
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
-                  active
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${active
                     ? "bg-[#EEF2FF] text-[#6366F1]"
                     : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]"
-                }`}
+                  }`}
               >
                 <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? "text-[#6366F1]" : "text-[#9CA3AF] group-hover:text-[#6B7280]"}`} />
                 {item.label}
+                {navItem.badge && !active && (
+                  <span className="ml-1 text-[8px] font-black bg-[#EF4444] text-white px-1.5 py-0.5 rounded-full tracking-wider animate-pulse">
+                    {navItem.badge}
+                  </span>
+                )}
                 {active && <ChevronRight className="w-3 h-3 ml-auto text-[#6366F1]" />}
               </Link>
             );

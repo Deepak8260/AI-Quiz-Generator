@@ -5,27 +5,28 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, BookOpen, BarChart3, Trophy,
   Activity, Database, Settings, LogOut, Shield, Zap,
-  ChevronRight, AlertTriangle, Loader2
+  ChevronRight, AlertTriangle, Loader2, Swords
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 const NAV = [
-  { href: "/admin",               icon: LayoutDashboard, label: "Overview"         },
-  { href: "/admin/users",         icon: Users,           label: "User Management"  },
-  { href: "/admin/quizzes",       icon: BookOpen,        label: "Quiz Database"    },
-  { href: "/admin/analytics",     icon: BarChart3,       label: "Analytics"        },
-  { href: "/admin/certificates",  icon: Trophy,          label: "Certificates"     },
-  { href: "/admin/activity",      icon: Activity,        label: "Live Activity"    },
-  { href: "/admin/explorer",      icon: Database,        label: "DB Explorer"      },
-  { href: "/admin/settings",      icon: Settings,        label: "System Settings"  },
+  { href: "/admin", icon: LayoutDashboard, label: "Overview" },
+  { href: "/admin/users", icon: Users, label: "User Management" },
+  { href: "/admin/quizzes", icon: BookOpen, label: "Quiz Database" },
+  { href: "/admin/contests", icon: Swords, label: "Live Contests" },
+  { href: "/admin/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/admin/certificates", icon: Trophy, label: "Certificates" },
+  { href: "/admin/activity", icon: Activity, label: "Live Activity" },
+  { href: "/admin/explorer", icon: Database, label: "DB Explorer" },
+  { href: "/admin/settings", icon: Settings, label: "System Settings" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const path   = usePathname();
+  const path = usePathname();
   const router = useRouter();
   const [adminUser, setAdminUser] = useState<{ name: string; email: string } | null>(null);
-  const [checking, setChecking]   = useState(true);
-  const [denied,   setDenied]     = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -128,11 +129,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const active = path === item.href || (item.href !== "/admin" && path.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
-                  active
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${active
                     ? "bg-[#6366F1] text-white shadow-lg shadow-[#6366F1]/20"
                     : "text-[#94a3b8] hover:bg-[#1E293B] hover:text-white"
-                }`}>
+                  }`}>
                 <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? "text-white" : "text-[#64748B] group-hover:text-[#94a3b8]"}`} />
                 {item.label}
                 {active && <ChevronRight className="w-3 h-3 ml-auto text-indigo-300" />}
