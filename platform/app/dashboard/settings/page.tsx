@@ -49,11 +49,10 @@ function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> 
 // ── Toast message ─────────────────────────────────────────────────
 function Toast({ msg, type }: { msg: string; type: "success" | "error" }) {
   return (
-    <div className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border mt-4 ${
-      type === "success"
-        ? "bg-[#D1FAE5] border-[#6EE7B7] text-[#065F46]"
-        : "bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]"
-    }`}>
+    <div className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl border mt-4 ${type === "success"
+      ? "bg-[#D1FAE5] border-[#6EE7B7] text-[#065F46]"
+      : "bg-[#FEF2F2] border-[#FECACA] text-[#DC2626]"
+      }`}>
       {type === "success"
         ? <CheckCircle className="w-4 h-4 flex-shrink-0" />
         : <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
@@ -64,27 +63,32 @@ function Toast({ msg, type }: { msg: string; type: "success" | "error" }) {
 
 // ── Main ──────────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const router  = useRouter();
-  const { theme, setTheme } = useTheme();
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
+
+  // ThemeContext only exposes toggleTheme, so we derive a "select" helper
+  const selectTheme = (t: "light" | "dark") => {
+    if (t !== theme) toggleTheme();
+  };
 
   // Profile state
   const [displayName, setDisplayName] = useState("");
-  const [email,       setEmail]       = useState("");
-  const [initials,    setInitials]    = useState("?");
-  const [profileSaving,   setProfileSaving]   = useState(false);
+  const [email, setEmail] = useState("");
+  const [initials, setInitials] = useState("?");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Password state
-  const [currentPwd,  setCurrentPwd]  = useState("");
-  const [newPwd,      setNewPwd]      = useState("");
-  const [confirmPwd,  setConfirmPwd]  = useState("");
-  const [showPwds,    setShowPwds]    = useState(false);
-  const [pwdSaving,   setPwdSaving]   = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showPwds, setShowPwds] = useState(false);
+  const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdMsg, setPwdMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Delete-account confirmation
   const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting,      setDeleting]      = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // ── Load user on mount ───────────────────────────────────────────
@@ -232,24 +236,21 @@ export default function SettingsPage() {
             {(["light", "dark"] as const).map(t => (
               <button
                 key={t}
-                onClick={() => setTheme(t)}
-                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all ${
-                  theme === t
-                    ? "border-[#6366F1] bg-[#EEF2FF] dark:bg-[#1e1b4b]"
-                    : "border-[#E5E7EB] dark:border-[#334155] bg-[#F9FAFB] dark:bg-[#0f172a] hover:border-[#C7D2FE]"
-                }`}
+                onClick={() => selectTheme(t)}
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all ${theme === t
+                  ? "border-[#6366F1] bg-[#EEF2FF] dark:bg-[#1e1b4b]"
+                  : "border-[#E5E7EB] dark:border-[#334155] bg-[#F9FAFB] dark:bg-[#0f172a] hover:border-[#C7D2FE]"
+                  }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  t === "light" ? "bg-[#FEF3C7]" : "bg-[#1e293b]"
-                }`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${t === "light" ? "bg-[#FEF3C7]" : "bg-[#1e293b]"
+                  }`}>
                   {t === "light"
                     ? <Sun className="w-4 h-4 text-[#F59E0B]" />
                     : <Moon className="w-4 h-4 text-[#94a3b8]" />}
                 </div>
                 <div className="text-left">
-                  <div className={`text-sm font-bold capitalize ${
-                    theme === t ? "text-[#6366F1]" : "text-[#374151] dark:text-[#f8fafc]"
-                  }`}>{t} Mode</div>
+                  <div className={`text-sm font-bold capitalize ${theme === t ? "text-[#6366F1]" : "text-[#374151] dark:text-[#f8fafc]"
+                    }`}>{t} Mode</div>
                   <div className="text-[10px] text-[#9CA3AF]">
                     {t === "light" ? "Clean & bright" : "Easy on the eyes"}
                   </div>
@@ -304,11 +305,10 @@ export default function SettingsPage() {
                       (/[^A-Za-z0-9]/.test(newPwd) ? 1 : 0)
                     );
                     return (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${
-                        i <= strength
-                          ? strength <= 1 ? "bg-[#EF4444]" : strength <= 2 ? "bg-[#F59E0B]" : strength <= 3 ? "bg-[#10B981]" : "bg-[#059669]"
-                          : "bg-[#E5E7EB] dark:bg-[#334155]"
-                      }`} />
+                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength
+                        ? strength <= 1 ? "bg-[#EF4444]" : strength <= 2 ? "bg-[#F59E0B]" : strength <= 3 ? "bg-[#10B981]" : "bg-[#059669]"
+                        : "bg-[#E5E7EB] dark:bg-[#334155]"
+                        }`} />
                     );
                   })}
                 </div>
