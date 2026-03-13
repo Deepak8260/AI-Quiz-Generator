@@ -244,18 +244,34 @@ export default function ContestsPage() {
         const contestList = contestData ?? [];
         const ids = contestList.map(c => c.id);
 
-        // Participant counts + user enrollments in parallel
-        const [{ data: allParts }, { data: myParts }] = await Promise.all([
-            ids.length
-                ? supabase.from("contest_participants").select("contest_id").in("contest_id", ids)
-                : Promise.resolve({ data: [] }),
-            ids.length
-                ? supabase.from("contest_participants").select("contest_id").in("contest_id", ids).eq("user_id", user.id)
-                : Promise.resolve({ data: [] }),
+        if (ids.length === 0) {
+            setEnrolled(new Set());
+            setContests([]);
+            setLoading(false);
+            return;
+        }
+
+        // Use per-contest exact counts (RLS-safe: each query is scoped to a single contest_id)
+        // and fetch the current user's enrollments in parallel.
+        const [countResults, { data: myParts }] = await Promise.all([
+            Promise.all(
+                ids.map(cid =>
+                    supabase
+                        .from("contest_participants")
+                        .select("*", { count: "exact", head: true })
+                        .eq("contest_id", cid)
+                        .then(({ count }) => ({ cid, count: count ?? 0 }))
+                )
+            ),
+            supabase
+                .from("contest_participants")
+                .select("contest_id")
+                .in("contest_id", ids)
+                .eq("user_id", user.id),
         ]);
 
         const countMap: Record<string, number> = {};
-        (allParts ?? []).forEach(p => { countMap[p.contest_id] = (countMap[p.contest_id] ?? 0) + 1; });
+        countResults.forEach(({ cid, count }) => { countMap[cid] = count; });
 
         setEnrolled(new Set((myParts ?? []).map(p => p.contest_id)));
         setContests(contestList.map(c => ({ ...c, participant_count: countMap[c.id] ?? 0 })));
@@ -316,10 +332,12 @@ export default function ContestsPage() {
             .insert({ contest_id: contest.id, user_id: userId });
 
         if (error) {
-            flash("error", error.message === "duplicate key value violates unique constraint"
-                ? "You're already enrolled." : error.message);
+            flash("error", error.message.includes("duplicate key")
+                ? "You're already enrolled in this contest." : error.message);
         } else {
             flash("success", `Successfully enrolled in "${contest.title}"! Head to the lobby when it starts.`);
+            // Small delay to let Supabase propagate the insert before re-fetching counts
+            await new Promise(res => setTimeout(res, 300));
             await load();
         }
         setEnrolling(false);
