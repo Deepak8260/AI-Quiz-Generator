@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
     Swords, Clock, Users, Zap, CheckCircle, Loader2,
     Calendar, Filter, AlertCircle, X, BookOpen, Trophy
@@ -327,8 +328,8 @@ export default function ContestsPage() {
             {/* Flash message */}
             {flashMsg && (
                 <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold max-w-sm animate-fade-in ${flashMsg.type === "success"
-                        ? "bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7]"
-                        : "bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA]"
+                    ? "bg-[#D1FAE5] text-[#065F46] border border-[#6EE7B7]"
+                    : "bg-[#FEE2E2] text-[#991B1B] border border-[#FECACA]"
                     }`}>
                     {flashMsg.type === "success" ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
                     <span className="flex-1">{flashMsg.text}</span>
@@ -347,11 +348,15 @@ export default function ContestsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Link href="/dashboard/contests/leaderboard"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] text-[#92400E] border border-[#FCD34D] hover:shadow-md transition-all">
+                        <Trophy className="w-3.5 h-3.5" /> Hall of Fame
+                    </Link>
                     {(["all", "upcoming", "live"] as const).map(f => (
                         <button key={f} onClick={() => setFilter(f)}
                             className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${filter === f
-                                    ? "bg-[#6366F1] text-white shadow-sm"
-                                    : "bg-white text-[#6B7280] border border-[#E5E7EB] hover:border-[#6366F1] hover:text-[#6366F1]"
+                                ? "bg-[#6366F1] text-white shadow-sm"
+                                : "bg-white text-[#6B7280] border border-[#E5E7EB] hover:border-[#6366F1] hover:text-[#6366F1]"
                                 }`}>
                             <Filter className={`w-3.5 h-3.5 inline mr-1.5 ${filter === f ? "text-white" : "text-[#9CA3AF]"}`} />
                             {f === "all" ? "All" : f === "upcoming" ? "Upcoming" : "🔴 Live"}

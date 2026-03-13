@@ -14,6 +14,7 @@ const NAV = [
   { href: "/dashboard/generate", icon: Zap, label: "Generate Quiz" },
   { href: "/dashboard/quizzes", icon: BookOpen, label: "My Quizzes" },
   { href: "/dashboard/contests", icon: Swords, label: "Live Contests", badge: "LIVE" },
+  { href: "/dashboard/battles", icon: Swords, label: "Battle Mode", badge: "HOT" },
   { href: "/dashboard/roadmap", icon: Map, label: "Study Roadmap" },
   { href: "/dashboard/certificates", icon: Trophy, label: "Certificates" },
   { href: "/dashboard/analytics", icon: BarChart3, label: "Analytics" },
@@ -85,12 +86,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     path === "/dashboard" ? "Dashboard" :
       path.includes("generate") ? "Generate Quiz" :
         path.includes("quizzes") ? "My Quizzes" :
-          path.includes("contests") ? "Live Contests" :
-            path.includes("roadmap") ? "Study Roadmap" :
-              path.includes("certificates") ? "Certificates" :
-                path.includes("analytics") ? "Analytics" :
-                  path.includes("leaderboard") ? "Leaderboard" :
-                    path.includes("settings") ? "Settings" : "";
+          path.includes("battles") ? "Battle Mode" :
+            path.includes("contests") ? "Live Contests" :
+              path.includes("roadmap") ? "Study Roadmap" :
+                path.includes("certificates") ? "Certificates" :
+                  path.includes("analytics") ? "Analytics" :
+                    path.includes("leaderboard") ? "Leaderboard" :
+                      path.includes("settings") ? "Settings" : "";
 
   return (
     <div className="flex min-h-screen bg-[#F7F8FC]">
@@ -124,8 +126,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${active
-                    ? "bg-[#EEF2FF] text-[#6366F1]"
-                    : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]"
+                  ? "bg-[#EEF2FF] text-[#6366F1]"
+                  : "text-[#6B7280] hover:bg-[#F9FAFB] hover:text-[#374151]"
                   }`}
               >
                 <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? "text-[#6366F1]" : "text-[#9CA3AF] group-hover:text-[#6B7280]"}`} />
