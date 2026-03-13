@@ -105,17 +105,18 @@ export default function AdminContestsPage() {
 
         const { data, count } = await query;
 
-        // Fetch participant counts in parallel
+        // Fetch participant counts via SECURITY DEFINER RPC (bypasses RLS)
         const ids = (data ?? []).map(c => c.id);
         let countMap: Record<string, number> = {};
         if (ids.length > 0) {
-            const { data: parts } = await supabase
-                .from("contest_participants")
-                .select("contest_id")
-                .in("contest_id", ids);
-            (parts ?? []).forEach(p => {
-                countMap[p.contest_id] = (countMap[p.contest_id] ?? 0) + 1;
-            });
+            const countResults = await Promise.all(
+                ids.map(async (cid) => {
+                    const { data: cnt } = await supabase
+                        .rpc("get_contest_participant_count", { contest_id_input: cid });
+                    return { cid, count: (cnt as number) ?? 0 };
+                })
+            );
+            countResults.forEach(({ cid, count }) => { countMap[cid] = count; });
         }
 
         setContests((data ?? []).map(c => ({ ...c, participant_count: countMap[c.id] ?? 0 })));

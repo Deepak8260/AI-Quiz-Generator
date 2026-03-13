@@ -157,8 +157,19 @@ export default function ContestQuizPage() {
         if (submitted) { router.replace(`/dashboard/contests/${id}/leaderboard`); return; }
 
         // Guard: not enrolled
-        if (!enrollment) {
-            setError("You are not enrolled in this contest.");
+        // Check DB + localStorage fallback (same pattern as lobby page)
+        const dbEnrolled = Boolean(enrollment);
+        let localEnrolled = false;
+        try {
+            const LS_KEY = `questly_enrolled_${user.id}`;
+            const raw = localStorage.getItem(LS_KEY);
+            const arr: string[] = raw ? JSON.parse(raw) : [];
+            localEnrolled = arr.includes(id);
+        } catch { /* ignore */ }
+        const isEnrolled = dbEnrolled || localEnrolled;
+
+        if (!isEnrolled) {
+            setError("You are not enrolled in this contest. Please enroll first.");
             setLoading(false);
             return;
         }

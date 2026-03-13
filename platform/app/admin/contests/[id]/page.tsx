@@ -79,24 +79,42 @@ export default function ContestDetailPage() {
         setLoading(true);
         const supabase = createClient();
 
-        const [{ data: c }, { data: parts }, { data: ress }] = await Promise.all([
+        const [{ data: c }, { data: partsRaw }, { data: ressRaw }] = await Promise.all([
             supabase.from("contests").select("*").eq("id", id).single(),
             supabase
                 .from("contest_participants")
-                .select("*, profiles(full_name, email)")
+                .select("id, contest_id, user_id, enrolled_at")
                 .eq("contest_id", id)
                 .order("enrolled_at", { ascending: false }),
             supabase
                 .from("contest_results")
-                .select("*, profiles(full_name, email)")
+                .select("id, contest_id, user_id, score, total_questions, accuracy, time_taken_seconds, rank, submitted_at")
                 .eq("contest_id", id)
                 .order("rank", { ascending: true }),
         ]);
 
         if (!c) { router.replace("/admin/contests"); return; }
+
+        // Fetch profiles separately to avoid cross-table RLS JOIN blocking
+        const allUserIds = [
+            ...new Set([
+                ...(partsRaw ?? []).map(p => p.user_id),
+                ...(ressRaw ?? []).map(r => r.user_id),
+            ])
+        ];
+        const { data: profilesData } = allUserIds.length > 0
+            ? await supabase.from("profiles").select("id, full_name, email").in("id", allUserIds)
+            : { data: [] };
+
+        const profileMap: Record<string, { full_name: string | null; email: string | null }> = {};
+        (profilesData ?? []).forEach(pr => { profileMap[pr.id] = pr; });
+
+        const parts = (partsRaw ?? []).map(p => ({ ...p, profiles: profileMap[p.user_id] ?? { full_name: null, email: null } }));
+        const ress = (ressRaw ?? []).map(r => ({ ...r, profiles: profileMap[r.user_id] ?? { full_name: null, email: null } }));
+
         setContest(c as Contest);
-        setParticipants((parts as ContestParticipant[]) ?? []);
-        setResults((ress as ContestResult[]) ?? []);
+        setParticipants(parts as ContestParticipant[]);
+        setResults(ress as ContestResult[]);
         setLoading(false);
     }, [id, router]);
 

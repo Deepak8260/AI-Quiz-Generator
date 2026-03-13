@@ -26,12 +26,38 @@ export default function ParticipantsDrawer({ contestId, contestTitle, onClose }:
         const load = async () => {
             setLoading(true);
             const supabase = createClient();
-            const { data } = await supabase
+
+            // Step 1: Fetch participant rows (admin RLS policy allows this)
+            const { data: parts } = await supabase
                 .from("contest_participants")
-                .select("*, profiles(full_name, email)")
+                .select("id, contest_id, user_id, enrolled_at")
                 .eq("contest_id", contestId)
                 .order("enrolled_at", { ascending: false });
-            setParticipants((data as ContestParticipant[]) ?? []);
+
+            if (!parts || parts.length === 0) {
+                setParticipants([]);
+                setLoading(false);
+                return;
+            }
+
+            // Step 2: Fetch profiles separately for those user_ids
+            // (avoids cross-table JOIN being blocked by profiles RLS)
+            const userIds = parts.map(p => p.user_id);
+            const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, full_name, email")
+                .in("id", userIds);
+
+            const profileMap: Record<string, { full_name: string | null; email: string | null }> = {};
+            (profiles ?? []).forEach(pr => { profileMap[pr.id] = pr; });
+
+            // Step 3: Merge participants with their profile data
+            const merged = parts.map(p => ({
+                ...p,
+                profiles: profileMap[p.user_id] ?? { full_name: null, email: null },
+            }));
+
+            setParticipants(merged as ContestParticipant[]);
             setLoading(false);
         };
         load();

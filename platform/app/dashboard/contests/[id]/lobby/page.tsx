@@ -79,12 +79,16 @@ export default function LobbyPage() {
         if (!user) { router.push("/login"); return; }
         setUserId(user.id);
 
-        const [{ data: c }, { count: pCount }, { data: enrollment }, { data: submitted }] = await Promise.all([
+        const [{ data: c }, { data: enrollment }, { data: submitted }] = await Promise.all([
             supabase.from("contests").select("*").eq("id", id).single(),
-            supabase.from("contest_participants").select("*", { count: "exact", head: true }).eq("contest_id", id),
             supabase.from("contest_participants").select("id").eq("contest_id", id).eq("user_id", user.id).maybeSingle(),
             supabase.from("contest_results").select("id").eq("contest_id", id).eq("user_id", user.id).maybeSingle(),
         ]);
+
+        // Fetch participant count via SECURITY DEFINER RPC (bypasses RLS)
+        const { data: countData } = await supabase
+            .rpc("get_contest_participant_count", { contest_id_input: id });
+        const pCount = (countData as number | null) ?? 0;
 
         if (!c) { router.replace("/dashboard/contests"); return; }
 
@@ -92,18 +96,24 @@ export default function LobbyPage() {
         if (submitted) { router.replace(`/dashboard/contests/${id}/leaderboard`); return; }
 
         setContest(c as Contest);
-        setCount(pCount ?? 0);
-        const enrolled = Boolean(enrollment);
+        setCount(pCount);
+        // Check enrollment: DB query + localStorage fallback
+        const dbEnrolled = Boolean(enrollment);
+        const LS_KEY = `questly_enrolled_${user.id}`;
+        let localEnrolled = false;
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            const arr: string[] = raw ? JSON.parse(raw) : [];
+            localEnrolled = arr.includes(id);
+        } catch { /* ignore */ }
+        const enrolled = dbEnrolled || localEnrolled;
         setIsEnrolled(enrolled);
         enrolledRef.current = enrolled; // keep ref in sync for Realtime callbacks
 
-        // If contest is already live when user opens the lobby → go straight to quiz
+        // If contest is already live → enable the Start button (don't auto-redirect)
+        // The user will see the lobby in live state and manually click "Start Contest!"
         if (c.status === "live") {
-            if (enrolled) {
-                router.replace(`/dashboard/contests/${id}/quiz`);
-                return;
-            }
-            setCanStart(true); // non-enrolled viewer: just show the live state
+            setCanStart(true);
         }
         if (c.status === "ended" || c.status === "cancelled") {
             router.replace(`/dashboard/contests/${id}/leaderboard`);
@@ -130,11 +140,8 @@ export default function LobbyPage() {
                 const updated = payload.new as Contest;
                 setContest(updated);
                 if (updated.status === "live") {
+                    // Enable the Start button — user clicks when ready
                     setCanStart(true);
-                    // Auto-navigate enrolled users directly into the quiz
-                    if (enrolledRef.current) {
-                        router.push(`/dashboard/contests/${id}/quiz`);
-                    }
                 }
                 if (updated.status === "ended" || updated.status === "cancelled") {
                     router.replace(`/dashboard/contests/${id}/leaderboard`);
@@ -149,12 +156,10 @@ export default function LobbyPage() {
                 event: "*", schema: "public", table: "contest_participants",
                 filter: `contest_id=eq.${id}`,
             }, () => {
-                // Re-fetch count
+                // Re-fetch count via RPC
                 supabase
-                    .from("contest_participants")
-                    .select("*", { count: "exact", head: true })
-                    .eq("contest_id", id)
-                    .then(({ count }) => setCount(count ?? 0));
+                    .rpc("get_contest_participant_count", { contest_id_input: id })
+                    .then(({ data }) => setCount((data as number | null) ?? 0));
             })
             .subscribe();
 

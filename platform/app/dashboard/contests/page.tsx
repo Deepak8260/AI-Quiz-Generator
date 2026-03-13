@@ -226,6 +226,25 @@ export default function ContestsPage() {
     const [enrolling, setEnrolling] = useState(false);
     const [flashMsg, setFlashMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+    // ── localStorage enrollment cache helpers ─────────────────────
+    // Because the RLS policy on contest_participants only lets users
+    // see their OWN rows (after the fix), and before the SQL migration
+    // runs the recursive policy returns 0 rows, we keep a localStorage
+    // cache of enrollments as a reliable fallback.
+    const LS_ENROLLED_KEY = (uid: string) => `questly_enrolled_${uid}`;
+
+    const readLocalEnrolled = (uid: string): Set<string> => {
+        try {
+            const raw = localStorage.getItem(LS_ENROLLED_KEY(uid));
+            return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+        } catch { return new Set(); }
+    };
+
+    const writeLocalEnrolled = (uid: string, set: Set<string>) => {
+        try { localStorage.setItem(LS_ENROLLED_KEY(uid), JSON.stringify([...set])); }
+        catch { /* quota */ }
+    };
+
     const load = useCallback(async () => {
         setLoading(true);
         const supabase = createClient();
@@ -251,29 +270,46 @@ export default function ContestsPage() {
             return;
         }
 
-        // Use per-contest exact counts (RLS-safe: each query is scoped to a single contest_id)
-        // and fetch the current user's enrollments in parallel.
-        const [countResults, { data: myParts }] = await Promise.all([
-            Promise.all(
-                ids.map(cid =>
-                    supabase
-                        .from("contest_participants")
-                        .select("*", { count: "exact", head: true })
-                        .eq("contest_id", cid)
-                        .then(({ count }) => ({ cid, count: count ?? 0 }))
-                )
-            ),
-            supabase
-                .from("contest_participants")
-                .select("contest_id")
-                .in("contest_id", ids)
-                .eq("user_id", user.id),
+        // ── Participant counts via SECURITY DEFINER RPC ────────────
+        // The RPC bypasses RLS so it always returns the true count.
+        // Falls back to 0 if the function doesn't exist yet (pre-migration).
+        const countResults = await Promise.all(
+            ids.map(async (cid) => {
+                const { data, error } = await supabase
+                    .rpc("get_contest_participant_count", { contest_id_input: cid });
+                // If RPC doesn't exist yet (migration not run), fall back to 0
+                if (error) return { cid, count: 0 };
+                return { cid, count: (data as number) ?? 0 };
+            })
+        );
+
+        // ── Enrollment check: DB + localStorage merge ──────────────
+        // DB query works after the RLS fix; localStorage acts as reliable
+        // fallback in case the migration hasn't been applied yet.
+        const { data: myParts } = await supabase
+            .from("contest_participants")
+            .select("contest_id")
+            .in("contest_id", ids)
+            .eq("user_id", user.id);
+
+        const dbEnrolled = new Set((myParts ?? []).map(p => p.contest_id));
+        const localEnrolled = readLocalEnrolled(user.id);
+        // Merge: trust DB when it returns data; supplement with localStorage
+        // Remove contests from localStorage that no longer exist
+        const validIds = new Set(ids);
+        const mergedEnrolled = new Set([
+            ...dbEnrolled,
+            ...[...localEnrolled].filter(id => validIds.has(id)),
         ]);
+        // If DB returned rows, sync localStorage to match DB (DB is source of truth)
+        if (dbEnrolled.size > 0) {
+            writeLocalEnrolled(user.id, mergedEnrolled);
+        }
 
         const countMap: Record<string, number> = {};
         countResults.forEach(({ cid, count }) => { countMap[cid] = count; });
 
-        setEnrolled(new Set((myParts ?? []).map(p => p.contest_id)));
+        setEnrolled(mergedEnrolled);
         setContests(contestList.map(c => ({ ...c, participant_count: countMap[c.id] ?? 0 })));
         setLoading(false);
     }, [router]);
@@ -336,8 +372,21 @@ export default function ContestsPage() {
                 ? "You're already enrolled in this contest." : error.message);
         } else {
             flash("success", `Successfully enrolled in "${contest.title}"! Head to the lobby when it starts.`);
-            // Small delay to let Supabase propagate the insert before re-fetching counts
-            await new Promise(res => setTimeout(res, 300));
+            // ── Write enrollment to localStorage immediately ───────
+            // This ensures the UI reflects enrollment even before the
+            // DB SELECT query catches up (RLS fix may not be deployed yet).
+            if (userId) {
+                const local = readLocalEnrolled(userId);
+                local.add(contest.id);
+                writeLocalEnrolled(userId, local);
+                // Optimistically update enrolled state right now (no wait needed)
+                setEnrolled(prev => new Set([...prev, contest.id]));
+                setContests(prev => prev.map(c =>
+                    c.id === contest.id ? { ...c, participant_count: c.participant_count + 1 } : c
+                ));
+            }
+            // Also do a background reload after delay to sync counts from DB
+            await new Promise(res => setTimeout(res, 500));
             await load();
         }
         setEnrolling(false);
@@ -345,13 +394,8 @@ export default function ContestsPage() {
     };
 
     const handleJoin = (contest: Contest & { participant_count: number }) => {
-        if (contest.status === "live") {
-            // Contest is live — go directly to the quiz, skip the lobby
-            router.push(`/dashboard/contests/${contest.id}/quiz`);
-        } else {
-            // Contest not yet live — go to lobby to wait
-            router.push(`/dashboard/contests/${contest.id}/lobby`);
-        }
+        // Always go to lobby — lobby handles live/upcoming state and lets user click Start
+        router.push(`/dashboard/contests/${contest.id}/lobby`);
     };
 
     const displayed = contests.filter(c => {
