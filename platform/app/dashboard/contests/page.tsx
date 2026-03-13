@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
     Swords, Clock, Users, Zap, CheckCircle, Loader2,
     Calendar, Filter, AlertCircle, X, BookOpen, Trophy
@@ -275,6 +274,29 @@ export default function ContestsPage() {
         setEnrolling(true);
         const supabase = createClient();
 
+        // Guard: re-fetch latest contest status to prevent enrolling into a live contest
+        const { data: freshContest } = await supabase
+            .from("contests")
+            .select("status")
+            .eq("id", contest.id)
+            .single();
+
+        if (freshContest?.status === "live") {
+            flash("error", "This contest has already started — enrollment is closed.");
+            setEnrolling(false);
+            setToEnroll(null);
+            await load(); // Refresh UI to reflect the live state
+            return;
+        }
+
+        if (freshContest?.status === "ended" || freshContest?.status === "cancelled") {
+            flash("error", "This contest is no longer accepting enrollments.");
+            setEnrolling(false);
+            setToEnroll(null);
+            await load();
+            return;
+        }
+
         // Enforce max_participants
         if (contest.max_participants != null) {
             const { count } = await supabase
@@ -348,10 +370,6 @@ export default function ContestsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Link href="/dashboard/contests/leaderboard"
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] text-[#92400E] border border-[#FCD34D] hover:shadow-md transition-all">
-                        <Trophy className="w-3.5 h-3.5" /> Hall of Fame
-                    </Link>
                     {(["all", "upcoming", "live"] as const).map(f => (
                         <button key={f} onClick={() => setFilter(f)}
                             className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${filter === f

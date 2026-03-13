@@ -194,8 +194,8 @@ export default function LobbyPage() {
             {/* Contest header */}
             <div className="bg-white border border-[#E5E7EB] rounded-2xl overflow-hidden shadow-sm mb-5">
                 <div className={`px-6 py-4 ${contest.status === "live"
-                        ? "bg-gradient-to-r from-[#ECFDF5] to-[#D1FAE5]"
-                        : "bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF]"
+                    ? "bg-gradient-to-r from-[#ECFDF5] to-[#D1FAE5]"
+                    : "bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF]"
                     }`}>
                     <div className="flex items-center gap-2 mb-1">
                         {contest.status === "live" ? (
@@ -286,8 +286,8 @@ export default function LobbyPage() {
                 onClick={() => router.push(`/dashboard/contests/${id}/quiz`)}
                 disabled={!canStart}
                 className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-black text-lg transition-all ${canStart
-                        ? "bg-gradient-to-r from-[#10B981] to-[#059669] text-white hover:shadow-xl hover:shadow-[#10B981]/30 hover:-translate-y-1 cursor-pointer"
-                        : "bg-[#F3F4F6] text-[#9CA3AF] cursor-not-allowed"
+                    ? "bg-gradient-to-r from-[#10B981] to-[#059669] text-white hover:shadow-xl hover:shadow-[#10B981]/30 hover:-translate-y-1 cursor-pointer"
+                    : "bg-[#F3F4F6] text-[#9CA3AF] cursor-not-allowed"
                     }`}
             >
                 {canStart ? (
