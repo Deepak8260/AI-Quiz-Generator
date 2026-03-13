@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     Clock, ChevronLeft, ChevronRight, Trophy, AlertCircle,
-    CheckCircle, XCircle, Loader2, Brain, Zap
+    CheckCircle, XCircle, Loader2, Brain, Zap, Swords
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { Contest, ContestQuestion } from "@/app/admin/contests/types";
@@ -134,6 +134,7 @@ export default function ContestQuizPage() {
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [waitingForLive, setWaitingForLive] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [endMs, setEndMs] = useState(0);
     const [startedAt, setStartedAt] = useState(0);
@@ -164,11 +165,22 @@ export default function ContestQuizPage() {
 
         // Guard: not live
         if (!c || c.status !== "live") {
-            if (c?.status === "ended") { router.replace(`/dashboard/contests/${id}/leaderboard`); return; }
-            setError(c ? `Contest is not live yet (status: ${c.status}).` : "Contest not found.");
+            if (c?.status === "ended" || c?.status === "cancelled") {
+                router.replace(`/dashboard/contests/${id}/leaderboard`);
+                return;
+            }
+            if (!c) {
+                setError("Contest not found.");
+                setLoading(false);
+                return;
+            }
+            // Contest is published but not yet live — show waiting screen, auto-retry
+            setWaitingForLive(true);
             setLoading(false);
             return;
         }
+        // Contest is now live — clear waiting state if we polled into it
+        setWaitingForLive(false);
 
         const qs: ContestQuestion[] = c.question_set ?? [];
         if (qs.length === 0) {
@@ -194,6 +206,15 @@ export default function ContestQuizPage() {
     }, [id, router]);
 
     useEffect(() => { load(); }, [load]);
+
+    // ── Auto-poll when waiting for contest to go live ─────────────
+    useEffect(() => {
+        if (!waitingForLive) return;
+        const interval = setInterval(() => {
+            load(); // Re-run the full load; it will clear waitingForLive when status === "live"
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [waitingForLive, load]);
 
     // ── Persist answers to localStorage on every change ───────────
     useEffect(() => {
@@ -245,6 +266,26 @@ export default function ContestQuizPage() {
         return (
             <div className="flex items-center justify-center py-32 text-[#6B7280]">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading contest quiz…
+            </div>
+        );
+    }
+
+    if (waitingForLive) {
+        return (
+            <div className="max-w-md mx-auto text-center py-20 animate-fade-in-up">
+                <div className="relative inline-flex items-center justify-center w-20 h-20 mb-5">
+                    <div className="absolute inset-0 rounded-full bg-[#EEF2FF] animate-ping opacity-50" />
+                    <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center shadow-lg shadow-[#6366F1]/30">
+                        <Swords className="w-9 h-9 text-white" />
+                    </div>
+                </div>
+                <h2 className="text-xl font-black text-[#111827] mb-2">Contest Starting Soon…</h2>
+                <p className="text-[#6B7280] mb-2">You&apos;re enrolled and ready to go!</p>
+                <p className="text-sm text-[#9CA3AF] mb-6">This page will automatically load your quiz the moment the contest goes live. No need to refresh.</p>
+                <div className="flex items-center justify-center gap-2 text-xs text-[#6366F1] font-semibold bg-[#EEF2FF] px-4 py-2 rounded-full">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Checking every 3 seconds…
+                </div>
             </div>
         );
     }
