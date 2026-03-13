@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
     Swords, Clock, Users, Zap, CheckCircle, Loader2,
-    Calendar, Filter, AlertCircle, X, BookOpen, Trophy
+    Calendar, Filter, AlertCircle, X, BookOpen, Trophy, ArrowRight
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import type { Contest, ContestDifficulty } from "@/app/admin/contests/types";
@@ -344,7 +344,15 @@ export default function ContestsPage() {
         setToEnroll(null);
     };
 
-    const handleJoin = (contestId: string) => router.push(`/dashboard/contests/${contestId}/lobby`);
+    const handleJoin = (contest: Contest & { participant_count: number }) => {
+        if (contest.status === "live") {
+            // Contest is live — go directly to the quiz, skip the lobby
+            router.push(`/dashboard/contests/${contest.id}/quiz`);
+        } else {
+            // Contest not yet live — go to lobby to wait
+            router.push(`/dashboard/contests/${contest.id}/lobby`);
+        }
+    };
 
     const displayed = contests.filter(c => {
         if (filter === "live") return c.status === "live";
@@ -402,17 +410,49 @@ export default function ContestsPage() {
             </div>
 
             {/* Your enrolled contests highlight */}
-            {enrolled.size > 0 && (
-                <div className="mb-6 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] border border-[#C7D2FE] rounded-2xl p-4 flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-[#6366F1] flex-shrink-0" />
-                    <div>
-                        <span className="text-sm font-bold text-[#4338CA]">
-                            You&apos;re enrolled in {enrolled.size} contest{enrolled.size > 1 ? "s" : ""}
-                        </span>
-                        <span className="text-sm text-[#6366F1] ml-2">— visit the lobby when it goes live!</span>
+            {enrolled.size > 0 && (() => {
+                // Find enrolled contests that are currently live
+                const liveEnrolled = contests.filter(
+                    c => enrolled.has(c.id) && c.status === "live"
+                );
+                const hasLive = liveEnrolled.length > 0;
+                // Link to the first live enrolled contest's quiz
+                const liveQuizHref = hasLive
+                    ? `/dashboard/contests/${liveEnrolled[0].id}/quiz`
+                    : null;
+
+                return hasLive ? (
+                    // 🔴 Urgent banner — contest is live right now!
+                    <div className="mb-6 bg-gradient-to-r from-[#ECFDF5] to-[#D1FAE5] border border-[#6EE7B7] rounded-2xl p-4 flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-ping flex-shrink-0" />
+                        <div className="flex-1">
+                            <span className="text-sm font-bold text-[#065F46]">
+                                {liveEnrolled.length === 1
+                                    ? `"${liveEnrolled[0].title}" is live right now!`
+                                    : `${liveEnrolled.length} of your enrolled contests are live!`}
+                            </span>
+                            <span className="text-sm text-[#059669] ml-2">Don&apos;t miss it!</span>
+                        </div>
+                        <button
+                            onClick={() => router.push(liveQuizHref!)}
+                            className="flex items-center gap-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-black px-4 py-2 rounded-xl transition-all hover:shadow-lg hover:shadow-[#10B981]/25 whitespace-nowrap flex-shrink-0"
+                        >
+                            Go to Quiz Now! <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
                     </div>
-                </div>
-            )}
+                ) : (
+                    // 📋 Default banner — enrolled but waiting for start
+                    <div className="mb-6 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] border border-[#C7D2FE] rounded-2xl p-4 flex items-center gap-3">
+                        <Trophy className="w-5 h-5 text-[#6366F1] flex-shrink-0" />
+                        <div>
+                            <span className="text-sm font-bold text-[#4338CA]">
+                                You&apos;re enrolled in {enrolled.size} contest{enrolled.size > 1 ? "s" : ""}
+                            </span>
+                            <span className="text-sm text-[#6366F1] ml-2">— visit the lobby when it goes live!</span>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Contest grid */}
             {loading ? (
@@ -440,7 +480,7 @@ export default function ContestsPage() {
                             isEnrolled={enrolled.has(c.id)}
                             participantCount={c.participant_count}
                             onEnroll={() => setToEnroll(c)}
-                            onJoin={() => handleJoin(c.id)}
+                            onJoin={() => handleJoin(c)}
                         />
                     ))}
                 </div>

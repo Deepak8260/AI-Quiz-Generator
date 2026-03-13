@@ -70,6 +70,8 @@ export default function LobbyPage() {
     const [canStart, setCanStart] = useState(false);
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const realtimeRef = useRef<ReturnType<typeof createClient> | null>(null);
+    // Stable ref so Realtime callbacks always read the current enrollment value
+    const enrolledRef = useRef<boolean>(false);
 
     const load = useCallback(async () => {
         const supabase = createClient();
@@ -91,10 +93,18 @@ export default function LobbyPage() {
 
         setContest(c as Contest);
         setCount(pCount ?? 0);
-        setIsEnrolled(Boolean(enrollment));
+        const enrolled = Boolean(enrollment);
+        setIsEnrolled(enrolled);
+        enrolledRef.current = enrolled; // keep ref in sync for Realtime callbacks
 
-        // If contest is live → enable start button
-        if (c.status === "live") setCanStart(true);
+        // If contest is already live when user opens the lobby → go straight to quiz
+        if (c.status === "live") {
+            if (enrolled) {
+                router.replace(`/dashboard/contests/${id}/quiz`);
+                return;
+            }
+            setCanStart(true); // non-enrolled viewer: just show the live state
+        }
         if (c.status === "ended" || c.status === "cancelled") {
             router.replace(`/dashboard/contests/${id}/leaderboard`);
             return;
@@ -119,8 +129,16 @@ export default function LobbyPage() {
             }, (payload) => {
                 const updated = payload.new as Contest;
                 setContest(updated);
-                if (updated.status === "live") setCanStart(true);
-                if (updated.status === "ended") router.replace(`/dashboard/contests/${id}/leaderboard`);
+                if (updated.status === "live") {
+                    setCanStart(true);
+                    // Auto-navigate enrolled users directly into the quiz
+                    if (enrolledRef.current) {
+                        router.push(`/dashboard/contests/${id}/quiz`);
+                    }
+                }
+                if (updated.status === "ended" || updated.status === "cancelled") {
+                    router.replace(`/dashboard/contests/${id}/leaderboard`);
+                }
             })
             .subscribe();
 
