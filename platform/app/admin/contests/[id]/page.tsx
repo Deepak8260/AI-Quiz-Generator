@@ -83,7 +83,7 @@ export default function ContestDetailPage() {
     const [loading, setLoading] = useState(true);
     const [showEdit, setShowEdit] = useState(false);
     const [confirmOpts, setConfirmOpts] = useState<ConfirmOpts>(null);
-    const [tab, setTab] = useState<"participants" | "results" | "responses">("participants");
+    const [tab, setTab] = useState<"participants" | "results" | "responses" | "qstats">("participants");
     // Which user's answers are expanded in Responses tab
     const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
@@ -296,13 +296,14 @@ export default function ContestDetailPage() {
             </div>
 
             {/* ── Tabs ───────────────────────────────────────────────────── */}
-            <div className="flex gap-1 bg-[#0F172A] border border-[#1E293B] rounded-xl p-1 mb-5 w-fit">
-                {(["participants", "results", "responses"] as const).map(t => (
+            <div className="flex gap-1 bg-[#0F172A] border border-[#1E293B] rounded-xl p-1 mb-5 w-fit overflow-x-auto">
+                {(["participants", "results", "responses", "qstats"] as const).map(t => (
                     <button key={t} onClick={() => setTab(t)}
-                        className={`px-5 py-2 rounded-lg text-sm font-bold capitalize transition-all ${tab === t ? "bg-[#6366F1] text-white" : "text-[#64748B] hover:text-white"}`}>
+                        className={`px-4 py-2 rounded-lg text-sm font-bold capitalize whitespace-nowrap transition-all ${tab === t ? "bg-[#6366F1] text-white" : "text-[#64748B] hover:text-white"}`}>
                         {t === "participants" ? `Participants (${participants.length})`
                             : t === "results" ? `Results (${results.length})`
-                                : `Responses (${Object.keys(answersByUser).length})`}
+                                : t === "responses" ? `Responses (${Object.keys(answersByUser).length})`
+                                    : `Question Stats (${questions.length})`}
                     </button>
                 ))}
             </div>
@@ -493,6 +494,102 @@ export default function ContestDetailPage() {
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+            {/* ── Question Stats tab ────────────────────────────────────── */}
+            {tab === "qstats" && (
+                <div className="space-y-4">
+                    {questions.length === 0 ? (
+                        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center py-16 text-center">
+                            <BookOpen className="w-12 h-12 text-[#1E293B] mb-3" />
+                            <p className="text-[#64748B]">No questions found in this contest.</p>
+                        </div>
+                    ) : (
+                        questions.map((q, qi) => {
+                            // Count how many answered this question and what they chose
+                            const qAnswers = answers.filter(a => a.question_id === q.id);
+                            const totalAnswered = qAnswers.length;
+                            const correctCount = qAnswers.filter(a => a.is_correct).length;
+                            const correctPct = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+
+                            // Count per-option selections
+                            const optionCounts: Record<string, number> = {};
+                            q.options.forEach(opt => { optionCounts[opt] = 0; });
+                            qAnswers.forEach(a => {
+                                if (a.selected_answer in optionCounts) {
+                                    optionCounts[a.selected_answer]++;
+                                }
+                            });
+
+                            const diffColor = correctPct >= 70 ? "#4ade80" : correctPct >= 40 ? "#fbbf24" : "#f87171";
+                            const diffLabel = correctPct >= 70 ? "Easy" : correctPct >= 40 ? "Medium" : "Hard";
+
+                            return (
+                                <div key={q.id} className="bg-[#0F172A] border border-[#1E293B] rounded-2xl overflow-hidden">
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#1E293B]">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-xs font-black text-[#475569] uppercase tracking-widest">Q{qi + 1}</span>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                    style={{ backgroundColor: `${diffColor}20`, color: diffColor }}>
+                                                    {diffLabel}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-semibold text-white leading-relaxed">{q.question}</p>
+                                        </div>
+                                        <div className="flex-shrink-0 text-right">
+                                            <div className="text-2xl font-black" style={{ color: diffColor }}>{correctPct}%</div>
+                                            <div className="text-xs text-[#64748B]">correct rate</div>
+                                            <div className="text-xs text-[#475569] mt-0.5">{correctCount}/{totalAnswered} users</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Per-option bars */}
+                                    <div className="px-6 py-4 space-y-2">
+                                        {q.options.map((opt, oi) => {
+                                            const count = optionCounts[opt] ?? 0;
+                                            const pct = totalAnswered > 0 ? Math.round((count / totalAnswered) * 100) : 0;
+                                            const isCorrectOpt = oi === q.correctIndex;
+                                            return (
+                                                <div key={oi} className="flex items-center gap-3">
+                                                    <span className="text-xs font-black text-[#475569] w-5 flex-shrink-0">{["A","B","C","D"][oi]}</span>
+                                                    <div className="flex-1 flex items-center gap-2">
+                                                        <div className="flex-1 h-6 bg-[#1E293B] rounded-lg overflow-hidden relative">
+                                                            <div
+                                                                className="h-full rounded-lg transition-all duration-500"
+                                                                style={{
+                                                                    width: `${pct}%`,
+                                                                    backgroundColor: isCorrectOpt ? "#10B981" : "#6366F1",
+                                                                    opacity: 0.7,
+                                                                }}
+                                                            />
+                                                            <span className="absolute inset-0 flex items-center px-2 text-xs font-semibold text-white">
+                                                                {opt.length > 35 ? opt.slice(0, 35) + "…" : opt}
+                                                                {isCorrectOpt && <CheckCircle className="w-3 h-3 ml-1 text-[#4ade80] flex-shrink-0" />}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs font-black text-[#64748B] w-12 text-right flex-shrink-0">
+                                                            {count} <span className="text-[#334155]">({pct}%)</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Explanation */}
+                                    {q.explanation && (
+                                        <div className="px-6 pb-4">
+                                            <div className="text-xs text-[#64748B] bg-[#0B1120] border border-[#1E293B] rounded-lg px-3 py-2 leading-relaxed">
+                                                💡 <strong className="text-[#94a3b8]">Explanation:</strong> {q.explanation}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
