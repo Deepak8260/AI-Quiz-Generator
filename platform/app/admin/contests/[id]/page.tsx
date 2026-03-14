@@ -503,101 +503,150 @@ export default function ContestDetailPage() {
                 </div>
             )}
             {/* ── Question Stats tab ────────────────────────────────────── */}
-            {tab === "qstats" && (
-                <div className="space-y-4">
-                    {questions.length === 0 ? (
-                        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center py-16 text-center">
-                            <BookOpen className="w-12 h-12 text-[#1E293B] mb-3" />
-                            <p className="text-[#64748B]">No questions found in this contest.</p>
-                        </div>
-                    ) : (
-                        questions.map((q, qi) => {
-                            // Count how many answered this question and what they chose
-                            const qAnswers = answers.filter(a => a.question_id === q.id);
-                            const totalAnswered = qAnswers.length;
-                            const correctCount = qAnswers.filter(a => a.is_correct).length;
-                            const correctPct = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+            {tab === "qstats" && (() => {
+                // Build a name + color lookup from participants + results
+                const avatarColors = ["#6366F1", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4", "#EC4899"];
+                const nameMap: Record<string, string> = {};
+                const colorMap: Record<string, string> = {};
+                let ci = 0;
+                [...participants, ...results].forEach(r => {
+                    const uid = r.user_id;
+                    if (!nameMap[uid]) {
+                        nameMap[uid] = r.profiles?.full_name ?? r.profiles?.email ?? "Unknown";
+                        colorMap[uid] = avatarColors[ci % avatarColors.length];
+                        ci++;
+                    }
+                });
 
-                            // Count per-option selections
-                            const optionCounts: Record<string, number> = {};
-                            q.options.forEach(opt => { optionCounts[opt] = 0; });
-                            qAnswers.forEach(a => {
-                                if (a.selected_answer in optionCounts) {
-                                    optionCounts[a.selected_answer]++;
-                                }
-                            });
+                return (
+                    <div className="space-y-4">
+                        {questions.length === 0 ? (
+                            <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center py-16 text-center">
+                                <BookOpen className="w-12 h-12 text-[#1E293B] mb-3" />
+                                <p className="text-[#64748B]">No questions found in this contest.</p>
+                            </div>
+                        ) : (
+                            questions.map((q, qi) => {
+                                const qAnswers = answers.filter(a => a.question_id === q.id);
+                                const totalAnswered = qAnswers.length;
+                                const correctCount = qAnswers.filter(a => a.is_correct).length;
+                                const correctPct = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
 
-                            const diffColor = correctPct >= 70 ? "#4ade80" : correctPct >= 40 ? "#fbbf24" : "#f87171";
-                            const diffLabel = correctPct >= 70 ? "Easy" : correctPct >= 40 ? "Medium" : "Hard";
+                                // Track which user IDs chose each option (by option text)
+                                const optionUsers: Record<string, string[]> = {};
+                                q.options.forEach(opt => { optionUsers[opt] = []; });
+                                qAnswers.forEach(a => {
+                                    if (a.selected_answer in optionUsers) {
+                                        optionUsers[a.selected_answer].push(a.user_id);
+                                    }
+                                });
 
-                            return (
-                                <div key={q.id} className="bg-[#0F172A] border border-[#1E293B] rounded-2xl overflow-hidden">
-                                    {/* Header */}
-                                    <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#1E293B]">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-black text-[#475569] uppercase tracking-widest">Q{qi + 1}</span>
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                                                    style={{ backgroundColor: `${diffColor}20`, color: diffColor }}>
-                                                    {diffLabel}
-                                                </span>
+                                const diffColor = correctPct >= 70 ? "#4ade80" : correctPct >= 40 ? "#fbbf24" : "#f87171";
+                                const diffLabel = correctPct >= 70 ? "Easy" : correctPct >= 40 ? "Medium" : "Hard";
+
+                                return (
+                                    <div key={q.id} className="bg-[#0F172A] border border-[#1E293B] rounded-2xl overflow-hidden">
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-[#1E293B]">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs font-black text-[#475569] uppercase tracking-widest">Q{qi + 1}</span>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                        style={{ backgroundColor: `${diffColor}20`, color: diffColor }}>
+                                                        {diffLabel}
+                                                    </span>
+                                                    {totalAnswered === 0 && (
+                                                        <span className="text-[10px] font-bold text-[#475569] bg-[#1E293B] px-2 py-0.5 rounded-full">No responses yet</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm font-semibold text-white leading-relaxed">{q.question}</p>
                                             </div>
-                                            <p className="text-sm font-semibold text-white leading-relaxed">{q.question}</p>
+                                            <div className="flex-shrink-0 text-right">
+                                                <div className="text-2xl font-black" style={{ color: diffColor }}>{correctPct}%</div>
+                                                <div className="text-xs text-[#64748B]">correct rate</div>
+                                                <div className="text-xs text-[#475569] mt-0.5">{correctCount}/{totalAnswered} answered</div>
+                                            </div>
                                         </div>
-                                        <div className="flex-shrink-0 text-right">
-                                            <div className="text-2xl font-black" style={{ color: diffColor }}>{correctPct}%</div>
-                                            <div className="text-xs text-[#64748B]">correct rate</div>
-                                            <div className="text-xs text-[#475569] mt-0.5">{correctCount}/{totalAnswered} users</div>
-                                        </div>
-                                    </div>
 
-                                    {/* Per-option bars */}
-                                    <div className="px-6 py-4 space-y-2">
-                                        {q.options.map((opt, oi) => {
-                                            const count = optionCounts[opt] ?? 0;
-                                            const pct = totalAnswered > 0 ? Math.round((count / totalAnswered) * 100) : 0;
-                                            const isCorrectOpt = oi === q.correctIndex;
-                                            return (
-                                                <div key={oi} className="flex items-center gap-3">
-                                                    <span className="text-xs font-black text-[#475569] w-5 flex-shrink-0">{["A","B","C","D"][oi]}</span>
-                                                    <div className="flex-1 flex items-center gap-2">
-                                                        <div className="flex-1 h-6 bg-[#1E293B] rounded-lg overflow-hidden relative">
-                                                            <div
-                                                                className="h-full rounded-lg transition-all duration-500"
-                                                                style={{
-                                                                    width: `${pct}%`,
-                                                                    backgroundColor: isCorrectOpt ? "#10B981" : "#6366F1",
-                                                                    opacity: 0.7,
-                                                                }}
-                                                            />
-                                                            <span className="absolute inset-0 flex items-center px-2 text-xs font-semibold text-white">
-                                                                {opt.length > 35 ? opt.slice(0, 35) + "…" : opt}
-                                                                {isCorrectOpt && <CheckCircle className="w-3 h-3 ml-1 text-[#4ade80] flex-shrink-0" />}
+                                        {/* Per-option rows */}
+                                        <div className="px-6 py-4 space-y-3">
+                                            {q.options.map((opt, oi) => {
+                                                const choosers = optionUsers[opt] ?? [];
+                                                const count = choosers.length;
+                                                const pct = totalAnswered > 0 ? Math.round((count / totalAnswered) * 100) : 0;
+                                                const isCorrectOpt = oi === q.correctIndex;
+
+                                                return (
+                                                    <div key={oi} className={`rounded-xl border overflow-hidden ${isCorrectOpt ? "border-[#10B981]/40" : "border-[#1E293B]"}`}>
+                                                        {/* Bar row */}
+                                                        <div className="flex items-center gap-3 px-3 py-2.5">
+                                                            <span className={`flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-black ${isCorrectOpt ? "bg-[#10B981] text-white" : "bg-[#1E293B] text-[#475569]"}`}>
+                                                                {["A", "B", "C", "D"][oi]}
+                                                            </span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="relative h-7 bg-[#0B1120] rounded-lg overflow-hidden">
+                                                                    <div className="absolute inset-y-0 left-0 rounded-lg transition-all duration-700"
+                                                                        style={{
+                                                                            width: `${pct}%`,
+                                                                            backgroundColor: isCorrectOpt ? "#10B981" : "#6366F1",
+                                                                            opacity: count > 0 ? 0.3 : 0,
+                                                                        }} />
+                                                                    <span className="absolute inset-0 flex items-center px-3 text-xs font-semibold text-white gap-1.5">
+                                                                        {opt}
+                                                                        {isCorrectOpt && <CheckCircle className="w-3 h-3 text-[#4ade80] flex-shrink-0" />}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <span className={`text-xs font-black flex-shrink-0 w-8 text-right ${isCorrectOpt ? "text-[#4ade80]" : count > 0 ? "text-[#94a3b8]" : "text-[#334155]"}`}>
+                                                                {pct}%
                                                             </span>
                                                         </div>
-                                                        <div className="text-xs font-black text-[#64748B] w-12 text-right flex-shrink-0">
-                                                            {count} <span className="text-[#334155]">({pct}%)</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
 
-                                    {/* Explanation */}
-                                    {q.explanation && (
-                                        <div className="px-6 pb-4">
-                                            <div className="text-xs text-[#64748B] bg-[#0B1120] border border-[#1E293B] rounded-lg px-3 py-2 leading-relaxed">
-                                                💡 <strong className="text-[#94a3b8]">Explanation:</strong> {q.explanation}
-                                            </div>
+                                                        {/* Name chips — who chose this option */}
+                                                        {count > 0 && (
+                                                            <div className={`flex flex-wrap gap-2 px-4 pb-3 pt-1 border-t ${isCorrectOpt ? "border-[#10B981]/20 bg-[#052e16]/40" : "border-[#1E293B] bg-[#0B1120]/60"}`}>
+                                                                {choosers.map(uid => {
+                                                                    const name = nameMap[uid] ?? "Unknown";
+                                                                    const color = colorMap[uid] ?? "#6366F1";
+                                                                    const initials = name.split(" ").map((w: string) => w[0]?.toUpperCase() ?? "").slice(0, 2).join("");
+                                                                    return (
+                                                                        <div key={uid} className="flex items-center gap-1.5 bg-[#1E293B] border border-[#334155] rounded-full px-2.5 py-1">
+                                                                            <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                                                                                style={{ backgroundColor: color }}>
+                                                                                {initials}
+                                                                            </div>
+                                                                            <span className="text-xs font-semibold text-[#CBD5E1] whitespace-nowrap">{name}</span>
+                                                                            {isCorrectOpt
+                                                                                ? <CheckCircle className="w-3 h-3 text-[#4ade80] flex-shrink-0" />
+                                                                                : <XCircle className="w-3 h-3 text-[#f87171] flex-shrink-0" />}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            {totalAnswered === 0 && (
+                                                <p className="text-center text-sm text-[#475569] py-2">No one has answered this question yet.</p>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            )}
+
+                                        {/* Explanation */}
+                                        {q.explanation && (
+                                            <div className="px-6 pb-4">
+                                                <div className="text-xs text-[#64748B] bg-[#0B1120] border border-[#1E293B] rounded-lg px-3 py-2 leading-relaxed">
+                                                    💡 <strong className="text-[#94a3b8]">Explanation:</strong> {q.explanation}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
