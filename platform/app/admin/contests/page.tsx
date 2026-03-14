@@ -89,6 +89,18 @@ export default function AdminContestsPage() {
     const [editingContest, setEditingContest] = useState<Contest | null>(null);
     const [participantsFor, setParticipantsFor] = useState<Contest | null>(null);
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+    const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+    const [resultsLiveCount, setResultsLiveCount] = useState(0);
+
+    // Human-readable label for each status filter
+    const STATUS_LABELS: Record<string, string> = {
+        all: "All",
+        draft: "Draft",
+        published: "Open",   // "published" = open for enrollment, NOT leaderboard-published
+        live: "Live",
+        ended: "Ended",
+        cancelled: "Cancelled",
+    };
 
     const fetchContests = useCallback(async () => {
         setLoading(true);
@@ -124,7 +136,23 @@ export default function AdminContestsPage() {
         setLoading(false);
     }, [page, search, filterStatus]);
 
-    useEffect(() => { fetchContests(); }, [fetchContests]);
+    // Fetch real global status counts (unaffected by pagination/filter)
+    const fetchStatusCounts = useCallback(async () => {
+        const supabase = createClient();
+        const { data } = await supabase
+            .from("contests")
+            .select("status, announced_at");
+        const counts: Record<string, number> = {};
+        let resultsLive = 0;
+        (data ?? []).forEach(c => {
+            counts[c.status] = (counts[c.status] ?? 0) + 1;
+            if (c.announced_at) resultsLive++;
+        });
+        setStatusCounts(counts);
+        setResultsLiveCount(resultsLive);
+    }, []);
+
+    useEffect(() => { fetchContests(); fetchStatusCounts(); }, [fetchContests, fetchStatusCounts]);
 
     const supabaseAction = async (
         id: string,
@@ -142,7 +170,7 @@ export default function AdminContestsPage() {
                 } else {
                     await supabase.from("contests").update(update).eq("id", id);
                 }
-                await fetchContests();
+                await Promise.all([fetchContests(), fetchStatusCounts()]);
             },
         });
     };
@@ -217,7 +245,7 @@ export default function AdminContestsPage() {
                                     : "text-[#64748B] hover:text-white hover:bg-[#1E293B]"
                                 }`}
                         >
-                            {s}
+                            {STATUS_LABELS[s] ?? s}
                         </button>
                     ))}
                 </div>
@@ -268,8 +296,15 @@ export default function AdminContestsPage() {
                                         <div className="text-xs text-[#475569] mt-0.5">{contest.topic}</div>
                                     </div>
 
-                                    {/* Status */}
-                                    <div><StatusBadge status={contest.status} /></div>
+                                    {/* Status + Results Live badge */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <StatusBadge status={contest.status} />
+                                        {contest.announced_at && (
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#7c3aed]/20 text-[#a78bfa] border border-[#7c3aed]/30 whitespace-nowrap">
+                                                🏆 Results Live
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {/* Start time */}
                                     <div className="flex items-center gap-1.5 text-xs text-[#64748B]">
@@ -370,19 +405,23 @@ export default function AdminContestsPage() {
                 )}
             </div>
 
-            {/* Stats bar */}
-            <div className="grid grid-cols-5 gap-4 mt-6">
+            {/* Stats bar — real DB-wide counts */}
+            <div className="grid grid-cols-6 gap-3 mt-6">
                 {(["draft", "published", "live", "ended", "cancelled"] as ContestStatus[]).map(s => {
-                    const count = contests.filter(c => c.status === s).length;
+                    const count = statusCounts[s] ?? 0;
                     return (
                         <button key={s} onClick={() => setFilterStatus(s === filterStatus ? "all" : s)}
-                            className={`bg-[#0F172A] border rounded-xl p-4 text-center transition-all hover:border-[#334155] cursor-pointer ${filterStatus === s ? "border-[#6366F1]" : "border-[#1E293B]"
-                                }`}>
+                            className={`bg-[#0F172A] border rounded-xl p-4 text-center transition-all hover:border-[#334155] cursor-pointer ${filterStatus === s ? "border-[#6366F1]" : "border-[#1E293B]"}`}>
                             <div className="text-2xl font-black text-white">{count}</div>
-                            <StatusBadge status={s} />
+                            <div className="text-xs font-bold text-[#64748B] mt-1">{STATUS_LABELS[s] ?? s}</div>
                         </button>
                     );
                 })}
+                {/* Leaderboard-published contests */}
+                <div className="bg-[#0F172A] border border-[#7c3aed]/30 rounded-xl p-4 text-center">
+                    <div className="text-2xl font-black text-[#a78bfa]">{resultsLiveCount}</div>
+                    <div className="text-xs font-bold text-[#7c3aed] mt-1">🏆 Results Live</div>
+                </div>
             </div>
         </div>
     );
