@@ -5,12 +5,12 @@ import Link from "next/link";
 import {
     ArrowLeft, Loader2, Trophy, Users, Clock, Calendar,
     Radio, Square, Play, Edit2, Megaphone, RefreshCw,
-    Target, CheckCircle, AlertTriangle
+    Target, CheckCircle, AlertTriangle, XCircle, BookOpen
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import StatusBadge from "../_components/StatusBadge";
 import ContestFormModal from "../_components/ContestFormModal";
-import type { Contest, ContestResult, ContestParticipant } from "../types";
+import type { Contest, ContestResult, ContestParticipant, ContestQuestion } from "../types";
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleString("en-US", {
@@ -63,6 +63,15 @@ function ConfirmModal({ opts, onCancel }: { opts: NonNullable<ConfirmOpts>; onCa
 
 const MEDAL: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
+// ── Per-question answer record ─────────────────────────────────────
+interface AnswerRecord {
+    user_id: string;
+    question_id: string;
+    selected_answer: string;
+    is_correct: boolean;
+    answered_at: string;
+}
+
 export default function ContestDetailPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
@@ -70,27 +79,32 @@ export default function ContestDetailPage() {
     const [contest, setContest] = useState<Contest | null>(null);
     const [participants, setParticipants] = useState<ContestParticipant[]>([]);
     const [results, setResults] = useState<ContestResult[]>([]);
+    const [answers, setAnswers] = useState<AnswerRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [showEdit, setShowEdit] = useState(false);
     const [confirmOpts, setConfirmOpts] = useState<ConfirmOpts>(null);
-    const [tab, setTab] = useState<"participants" | "results">("participants");
+    const [tab, setTab] = useState<"participants" | "results" | "responses">("participants");
+    // Which user's answers are expanded in Responses tab
+    const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         const supabase = createClient();
 
-        const [{ data: c }, { data: partsRaw }, { data: ressRaw }] = await Promise.all([
+        const [{ data: c }, { data: partsRaw }, { data: ressRaw }, { data: answersRaw }] = await Promise.all([
             supabase.from("contests").select("*").eq("id", id).single(),
-            supabase
-                .from("contest_participants")
+            supabase.from("contest_participants")
                 .select("id, contest_id, user_id, enrolled_at")
                 .eq("contest_id", id)
                 .order("enrolled_at", { ascending: false }),
-            supabase
-                .from("contest_results")
+            supabase.from("contest_results")
                 .select("id, contest_id, user_id, score, total_questions, accuracy, time_taken_seconds, rank, submitted_at")
                 .eq("contest_id", id)
-                .order("rank", { ascending: true }),
+                .order("score", { ascending: false }),
+            supabase.from("contest_answers")
+                .select("user_id, question_id, selected_answer, is_correct, answered_at")
+                .eq("contest_id", id)
+                .order("answered_at", { ascending: true }),
         ]);
 
         if (!c) { router.replace("/admin/contests"); return; }
@@ -115,6 +129,7 @@ export default function ContestDetailPage() {
         setContest(c as Contest);
         setParticipants(parts as ContestParticipant[]);
         setResults(ress as ContestResult[]);
+        setAnswers((answersRaw ?? []) as AnswerRecord[]);
         setLoading(false);
     }, [id, router]);
 
@@ -129,11 +144,11 @@ export default function ContestDetailPage() {
 
     const handlePublish = () => setConfirmOpts({ title: "Publish Contest", message: "This makes the contest visible and enrollable by users.", confirmLabel: "Publish", intent: "success", onConfirm: supabaseUpdate({ status: "published" }) });
     const handleForceStart = () => setConfirmOpts({ title: "Force Start", message: "The contest will go live immediately regardless of its schedule.", confirmLabel: "Go Live", intent: "warning", onConfirm: supabaseUpdate({ status: "live" }) });
-    const handleEnd = () => setConfirmOpts({ title: "End Contest", message: "This finalises the leaderboard. Participants can no longer submit.", confirmLabel: "End Contest", intent: "warning", onConfirm: supabaseUpdate({ status: "ended" }) });
-    const handleAnnounce = () => setConfirmOpts({
-        title: "Announce Winners",
-        message: "This will display a winner banner to all users viewing the leaderboard. Only do this after the results are final.",
-        confirmLabel: "Announce!",
+    const handleEnd = () => setConfirmOpts({ title: "End Contest", message: "This finalises submissions. Participants can no longer answer. Review responses then publish the leaderboard.", confirmLabel: "End Contest", intent: "warning", onConfirm: supabaseUpdate({ status: "ended" }) });
+    const handlePublishLeaderboard = () => setConfirmOpts({
+        title: "Publish Leaderboard",
+        message: "This will make the leaderboard visible to all participants. They'll see their score, rank, and the winner announcement. This cannot be undone.",
+        confirmLabel: "Publish Results!",
         intent: "success",
         onConfirm: supabaseUpdate({ announced_at: new Date().toISOString() }),
     });
@@ -150,7 +165,14 @@ export default function ContestDetailPage() {
 
     const canEdit = contest.status === "draft" || contest.status === "published";
     const isAnnounced = Boolean(contest.announced_at);
-    const endTime = new Date(new Date(contest.start_time).getTime() + contest.duration_minutes * 60_000);
+    const questions: ContestQuestion[] = (contest as unknown as { question_set: ContestQuestion[] }).question_set ?? [];
+
+    // Group answers by user for the Responses tab
+    const answersByUser: Record<string, AnswerRecord[]> = {};
+    answers.forEach(a => {
+        if (!answersByUser[a.user_id]) answersByUser[a.user_id] = [];
+        answersByUser[a.user_id].push(a);
+    });
 
     return (
         <div className="animate-fade-in-up max-w-5xl mx-auto">
@@ -184,8 +206,8 @@ export default function ContestDetailPage() {
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <StatusBadge status={contest.status} />
                             {isAnnounced && (
-                                <span className="flex items-center gap-1.5 text-xs font-bold bg-[#422006] text-[#fbbf24] px-3 py-1 rounded-full">
-                                    <Megaphone className="w-3 h-3" /> Winners Announced
+                                <span className="flex items-center gap-1.5 text-xs font-bold bg-[#052e16] text-[#4ade80] px-3 py-1 rounded-full">
+                                    <CheckCircle className="w-3 h-3" /> Leaderboard Published
                                 </span>
                             )}
                         </div>
@@ -221,10 +243,11 @@ export default function ContestDetailPage() {
                                 <Square className="w-3.5 h-3.5" /> End Contest
                             </button>
                         )}
+                        {/* ── Publish Leaderboard (was "Announce Winners") ── */}
                         {contest.status === "ended" && !isAnnounced && (
-                            <button onClick={handleAnnounce}
+                            <button onClick={handlePublishLeaderboard}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] rounded-xl transition-all shadow-lg shadow-[#6366F1]/20">
-                                <Megaphone className="w-3.5 h-3.5" /> Announce Winners
+                                <Megaphone className="w-3.5 h-3.5" /> Publish Leaderboard
                             </button>
                         )}
                         <button onClick={load}
@@ -258,28 +281,28 @@ export default function ContestDetailPage() {
                     ))}
                 </div>
 
-                {/* Leaderboard link */}
-                {(contest.status === "live" || contest.status === "ended") && (
-                    <div className="mt-4 flex items-center justify-between bg-[#0B1120] border border-[#1E293B] rounded-xl px-4 py-3">
-                        <div className="flex items-center gap-2 text-sm text-[#94a3b8]">
-                            <Trophy className="w-4 h-4 text-[#fbbf24]" />
-                            Live Leaderboard is active
+                {/* Publish reminder banner */}
+                {contest.status === "ended" && !isAnnounced && (
+                    <div className="mt-4 bg-[#1e1a2e] border border-[#6366F1]/30 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                        <div className="text-sm text-[#a5b4fc]">
+                            ⚡ Contest has ended. Review all responses below, then click <strong>&quot;Publish Leaderboard&quot;</strong> to reveal results to participants.
                         </div>
-                        <Link href={`/dashboard/contests/${id}/leaderboard`} target="_blank"
-                            className="text-xs font-bold text-[#6366F1] hover:text-[#4F46E5] transition-colors">
-                            View Leaderboard →
-                        </Link>
+                        <button onClick={handlePublishLeaderboard}
+                            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-[#6366F1] hover:bg-[#4F46E5] rounded-xl transition-all">
+                            <Megaphone className="w-3.5 h-3.5" /> Publish Now
+                        </button>
                     </div>
                 )}
             </div>
 
             {/* ── Tabs ───────────────────────────────────────────────────── */}
             <div className="flex gap-1 bg-[#0F172A] border border-[#1E293B] rounded-xl p-1 mb-5 w-fit">
-                {(["participants", "results"] as const).map(t => (
+                {(["participants", "results", "responses"] as const).map(t => (
                     <button key={t} onClick={() => setTab(t)}
-                        className={`px-5 py-2 rounded-lg text-sm font-bold capitalize transition-all ${tab === t ? "bg-[#6366F1] text-white" : "text-[#64748B] hover:text-white"
-                            }`}>
-                        {t === "participants" ? `Participants (${participants.length})` : `Results (${results.length})`}
+                        className={`px-5 py-2 rounded-lg text-sm font-bold capitalize transition-all ${tab === t ? "bg-[#6366F1] text-white" : "text-[#64748B] hover:text-white"}`}>
+                        {t === "participants" ? `Participants (${participants.length})`
+                            : t === "results" ? `Results (${results.length})`
+                                : `Responses (${Object.keys(answersByUser).length})`}
                     </button>
                 ))}
             </div>
@@ -294,22 +317,29 @@ export default function ContestDetailPage() {
                         </div>
                     ) : (
                         <>
-                            <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 px-6 py-3 border-b border-[#1E293B] text-[10px] font-black text-[#475569] uppercase tracking-widest">
-                                <div>#</div><div>Name</div><div>Email</div><div>Enrolled</div>
+                            <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-4 px-6 py-3 border-b border-[#1E293B] text-[10px] font-black text-[#475569] uppercase tracking-widest">
+                                <div>#</div><div>Name</div><div>Email</div><div>Submitted?</div><div>Enrolled</div>
                             </div>
                             <div className="divide-y divide-[#1E293B]">
                                 {participants.map((p, i) => {
                                     const name = p.profiles?.full_name ?? "Unknown";
                                     const email = p.profiles?.email ?? "—";
+                                    const submitted = results.some(r => r.user_id === p.user_id);
                                     const colors = ["#6366F1", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444", "#06B6D4"];
                                     const col = colors[i % colors.length];
                                     return (
-                                        <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 px-6 py-3.5 items-center hover:bg-[#1E293B]/40 transition-colors">
+                                        <div key={p.id} className="grid grid-cols-[auto_1fr_1fr_auto_auto] gap-4 px-6 py-3.5 items-center hover:bg-[#1E293B]/40 transition-colors">
                                             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: col }}>
                                                 {name[0]?.toUpperCase()}
                                             </div>
                                             <div className="text-sm font-semibold text-white">{name}</div>
                                             <div className="text-sm text-[#64748B]">{email}</div>
+                                            <div>
+                                                {submitted
+                                                    ? <span className="flex items-center gap-1 text-xs font-bold text-[#4ade80]"><CheckCircle className="w-3.5 h-3.5" /> Submitted</span>
+                                                    : <span className="flex items-center gap-1 text-xs font-bold text-[#64748B]"><Clock className="w-3.5 h-3.5" /> Pending</span>
+                                                }
+                                            </div>
                                             <div className="text-xs text-[#475569]">
                                                 {new Date(p.enrolled_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                                             </div>
@@ -334,20 +364,20 @@ export default function ContestDetailPage() {
                         </div>
                     ) : (
                         <>
-                            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-6 py-3 border-b border-[#1E293B] text-[10px] font-black text-[#475569] uppercase tracking-widest">
-                                <div>Rank</div><div>Participant</div><div>Score</div><div>Accuracy</div><div>Time</div>
+                            <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-[#1E293B] text-[10px] font-black text-[#475569] uppercase tracking-widest">
+                                <div>Rank</div><div>Participant</div><div>Score</div><div>Accuracy</div><div>Time</div><div>Submitted</div>
                             </div>
                             <div className="divide-y divide-[#1E293B]">
-                                {results.map((r) => {
+                                {results.map((r, idx) => {
                                     const name = r.profiles?.full_name ?? "Unknown";
-                                    const medal = r.rank ? MEDAL[r.rank] : null;
-                                    const isTop3 = r.rank && r.rank <= 3;
+                                    const rank = idx + 1;
+                                    const medal = MEDAL[rank];
+                                    const isTop3 = rank <= 3;
                                     return (
                                         <div key={r.id}
-                                            className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 px-6 py-4 items-center transition-colors ${isTop3 ? "bg-[#422006]/20 border-l-4 border-l-[#F59E0B]" : "hover:bg-[#1E293B]/40"
-                                                }`}>
+                                            className={`grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-6 py-4 items-center transition-colors ${isTop3 ? "bg-[#422006]/20 border-l-4 border-l-[#F59E0B]" : "hover:bg-[#1E293B]/40"}`}>
                                             <div className="w-10 text-lg font-black text-center">
-                                                {medal ?? <span className="text-sm text-[#64748B]">#{r.rank}</span>}
+                                                {medal ?? <span className="text-sm text-[#64748B]">#{rank}</span>}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="text-sm font-bold text-white">{name}</div>
@@ -367,11 +397,107 @@ export default function ContestDetailPage() {
                                             <div className="text-sm text-[#64748B] text-right">
                                                 {formatSeconds(r.time_taken_seconds)}
                                             </div>
+                                            <div className="text-xs text-[#475569] text-right">
+                                                {r.submitted_at ? new Date(r.submitted_at).toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
+                                            </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         </>
+                    )}
+                </div>
+            )}
+
+            {/* ── Responses tab (per-question breakdown) ───────────────────── */}
+            {tab === "responses" && (
+                <div className="space-y-3">
+                    {Object.keys(answersByUser).length === 0 ? (
+                        <div className="bg-[#0F172A] border border-[#1E293B] rounded-2xl flex flex-col items-center justify-center py-16 text-center">
+                            <BookOpen className="w-12 h-12 text-[#1E293B] mb-3" />
+                            <p className="text-[#64748B]">No responses recorded yet</p>
+                        </div>
+                    ) : (
+                        Object.entries(answersByUser).map(([uid, userAnswers]) => {
+                            const profile = participants.find(p => p.user_id === uid)?.profiles
+                                ?? results.find(r => r.user_id === uid)?.profiles
+                                ?? { full_name: null, email: null };
+                            const result = results.find(r => r.user_id === uid);
+                            const name = profile.full_name ?? "Unknown";
+                            const correct = userAnswers.filter(a => a.is_correct).length;
+                            const total = userAnswers.length;
+                            const isExpanded = expandedUser === uid;
+
+                            return (
+                                <div key={uid} className="bg-[#0F172A] border border-[#1E293B] rounded-2xl overflow-hidden">
+                                    {/* User row header */}
+                                    <button
+                                        onClick={() => setExpandedUser(isExpanded ? null : uid)}
+                                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#1E293B]/50 transition-colors text-left">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-[#6366F1] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                                {name[0]?.toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-bold text-white">{name}</div>
+                                                <div className="text-xs text-[#64748B]">{profile.email}</div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                                <div className="text-sm font-black text-white">{correct}/{total} correct</div>
+                                                {result && <div className="text-xs text-[#64748B]">Time: {formatSeconds(result.time_taken_seconds)}</div>}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {Array.from({ length: total }, (_, i) => (
+                                                    <div key={i} className={`w-2.5 h-2.5 rounded-full ${userAnswers[i]?.is_correct ? "bg-[#4ade80]" : "bg-[#EF4444]"}`} />
+                                                ))}
+                                            </div>
+                                            <span className="text-xs text-[#64748B]">{isExpanded ? "▲" : "▼"}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* Per-question breakdown */}
+                                    {isExpanded && (
+                                        <div className="border-t border-[#1E293B] divide-y divide-[#1E293B]">
+                                            {questions.map((q, qi) => {
+                                                const ans = userAnswers.find(a => a.question_id === q.id);
+                                                const correctOption = q.options[q.correctIndex];
+                                                return (
+                                                    <div key={q.id} className="px-6 py-4">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${ans?.is_correct ? "bg-[#052e16] text-[#4ade80]" : "bg-[#2d0a0a] text-[#f87171]"}`}>
+                                                                {ans?.is_correct
+                                                                    ? <CheckCircle className="w-3.5 h-3.5" />
+                                                                    : <XCircle className="w-3.5 h-3.5" />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-xs font-black text-[#475569] uppercase tracking-widest mb-1">Q{qi + 1}</div>
+                                                                <div className="text-sm text-white font-medium mb-2 leading-relaxed">{q.question}</div>
+                                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                                    <div className={`px-3 py-1.5 rounded-lg ${ans?.is_correct ? "bg-[#052e16] text-[#4ade80]" : "bg-[#2d0a0a] text-[#f87171]"}`}>
+                                                                        <span className="font-black uppercase text-[10px] tracking-widest block mb-0.5">
+                                                                            {ans ? "Answered" : "Skipped"}
+                                                                        </span>
+                                                                        {ans?.selected_answer || <em className="opacity-60">No answer</em>}
+                                                                    </div>
+                                                                    {!ans?.is_correct && (
+                                                                        <div className="px-3 py-1.5 rounded-lg bg-[#052e16] text-[#4ade80]">
+                                                                            <span className="font-black uppercase text-[10px] tracking-widest block mb-0.5">Correct Answer</span>
+                                                                            {correctOption}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
                     )}
                 </div>
             )}

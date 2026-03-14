@@ -251,7 +251,7 @@ export default function ContestQuizPage() {
                 timeTaken,
             });
             clearLS(id, userId!);
-            router.replace(`/dashboard/contests/${id}/leaderboard`);
+            router.replace(`/dashboard/contests/${id}/leaderboard?submitted=true`);
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Submission failed";
             setError(msg);
